@@ -8,8 +8,18 @@ export async function PATCH(req, { params }) {
     const { id } = params;
     const { status } = await req.json();
 
-    // ✅ Kiểm tra hợp lệ
-    const validStatuses = ["pending", "confirmed", "cancelled", "csconfirmed", "completed"];
+    // ✅ Kiểm tra hợp lệ với trạng thái mới
+    const validStatuses = [
+      "draft",
+      "pending_manager",
+      "manager_approved",
+      "pending_customer",
+      "customer_approved",
+      "in_progress",
+      "completed",
+      "cancelled",
+    ];
+
     if (!validStatuses.includes(status)) {
       return NextResponse.json(
         { success: false, message: "Trạng thái không hợp lệ." },
@@ -34,7 +44,7 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({
       success: true,
       data: plan,
-      message: `Đã cập nhật trạng thái thành '${status}'.`,
+      message: `✅ Đã cập nhật trạng thái thành '${status}'.`,
     });
   } catch (err) {
     console.error("❌ Lỗi khi cập nhật trạng thái:", err);

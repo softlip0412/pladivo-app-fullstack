@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,254 +18,127 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Check, CheckCircle, Clock, XCircle, Sparkles } from "lucide-react";
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
-
-import { EVENT_TEMPLATES } from "@/app/dashboard/data/event-templates";
-import { EVENT_TEMPLATES_STEP3 } from "@/app/dashboard/data/event-templates-step3";
-import { EVENT_TEMPLATES_STEP6 } from "@/app/dashboard/data/event-templates-step6";
-import { EVENT_TEMPLATES_STEP7 } from "@/app/dashboard/data/event-templates-step7";
+import { toast } from "sonner";
 
 export default function EventPlansPage() {
   const [plans, setPlans] = useState([]);
   const [partners, setPartners] = useState([]);
   const [staff, setStaff] = useState([]);
   const [bookingsList, setBookingsList] = useState([]);
-  const [selectedBooking, setSelectedBooking] = useState("");
-
-  // Form state
-  const [name, setName] = useState("");
-  const [area, setArea] = useState("");
-
-  const [setupDate, setSetupDate] = useState("");
-  const [timeline, setTimeline] = useState([]);
-  const [newTime, setNewTime] = useState("");
-  const [newContent, setNewContent] = useState("");
-  const [partnerSelections, setPartnerSelections] = useState({});
-  const [setupStaff, setSetupStaff] = useState([]);
-  const [trialStaff, setTrialStaff] = useState([]);
-  const [eventStaff, setEventStaff] = useState([]);
-  const [cleanupStaff, setCleanupStaff] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const [step, setStep] = useState(1);
   const [open, setOpen] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
-
   const [bookingInfo, setBookingInfo] = useState(null);
+  const [editingPlan, setEditingPlan] = useState(null);
 
-  const [goal, setGoal] = useState("");
-  const [audience, setAudience] = useState("");
-  const [eventCategory, setEventCategory] = useState("");
-
+  // Custom owner states
   const [customPrepOwner, setCustomPrepOwner] = useState({});
   const [customStaffAssignOwner, setCustomStaffAssignOwner] = useState({});
   const [customEventTimelineOwner, setCustomEventTimelineOwner] = useState({});
   const [customMarketingOwner, setCustomMarketingOwner] = useState({});
   const [customEventDayOwner, setCustomEventDayOwner] = useState({});
   const [customPostOwner, setCustomPostOwner] = useState({});
+  const [customStep4Owner, setCustomStep4Owner] = useState({});
+  const [customStep5Owner, setCustomStep5Owner] = useState({});
+  const [customStep6Owner, setCustomStep6Owner] = useState({});
+  const [customStep7Owner, setCustomStep7Owner] = useState({});
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("all");
-
   const [plansMap, setPlansMap] = useState({});
-  const [editingPlan, setEditingPlan] = useState(null);
+
+  // Step 1
+  const [goal, setGoal] = useState("");
+  const [audience, setAudience] = useState("");
+  const [eventCategory, setEventCategory] = useState("");
+
+  // Step 2
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [partnerOptions, setPartnerOptions] = useState([]);
+  const [selectedPartner, setSelectedPartner] = useState("");
+  const [bookingServices, setBookingServices] = useState([]);
+  const [budgetRows, setBudgetRows] = useState([
+    { category: "", description: "", unit: "", quantity: 1, cost: 0, note: "" },
+  ]);
+  const [prepTimeline, setPrepTimeline] = useState([
+    { time: "", task: "", manager: "" },
+  ]);
+  const [staffAssign, setStaffAssign] = useState([
+    { department: "", duty: "", manager: "", note: "" },
+  ]);
+  const [eventTimeline, setEventTimeline] = useState([
+    { time: "", activity: "", manager: "" },
+  ]);
+
+  // Step 3
+  const [theme, setTheme] = useState("");
+  const [mainColor, setMainColor] = useState("");
+  const [style, setStyle] = useState("");
+  const [message, setMessage] = useState("");
+  const [decoration, setDecoration] = useState("");
+  const [programScript, setProgramScript] = useState([
+    { time: "", content: "" },
+  ]);
+  const [keyActivities, setKeyActivities] = useState([
+    { activity: "", importance: "" },
+  ]);
+
+  // Step 3.5 - Kế hoạch chi phí
+  const [partnerCosts, setPartnerCosts] = useState([
+    { partnerId: "", partnerName: "", description: "", amount: 0, note: "" },
+  ]);
+  const [deposits, setDeposits] = useState([
+    { description: "", amount: 0, dueDate: "", status: "pending", note: "" },
+  ]);
+
+  // Step 4
+  const [prepChecklist, setPrepChecklist] = useState([
+    { category: "", description: "", owner: "", deadline: "" },
+  ]);
+
+  // Step 5
+  const [marketingChecklist, setMarketingChecklist] = useState([
+    { category: "", description: "", owner: "", deadline: "" },
+  ]);
+
+  // Step 6
+  const [eventDayChecklist, setEventDayChecklist] = useState([
+    { category: "", description: "", owner: "", deadline: "" },
+  ]);
+
+  // Step 7
+  const [postEventRows, setPostEventRows] = useState([
+    { category: "", description: "", owner: "", deadline: "" },
+  ]);
+
+  // ============ FETCH DATA ============
+  const fetchCurrentUser = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.success) setCurrentUser(data.user);
+    } catch (err) {
+      console.error("Fetch user error:", err);
+    }
+  };
 
   const fetchStaff = async () => {
     const res = await fetch("/api/staff");
     const json = await res.json();
     if (Array.isArray(json.staff)) setStaff(json.staff);
     else setStaff([]);
-  };
-
-  const StaffSelect = ({ value, onChange, placeholder = "Chọn nhân sự" }) => {
-    const displayName =
-      staff.find((s) => s._id === value)?.full_name || placeholder;
-
-    return (
-      <Select onValueChange={onChange} value={value}>
-        <SelectTrigger className="w-full">
-          <SelectValue>{displayName}</SelectValue>
-        </SelectTrigger>
-
-        <SelectContent>
-          {staff.map((s) => (
-            <SelectItem key={s._id} value={s._id}>
-              {s.full_name}
-              {s.department ? ` – ${s.department.name}` : ""}
-              {s.role ? ` – ${s.role.name}` : ""}
-            </SelectItem>
-          ))}
-
-          <SelectItem value="__custom__">✏️ Khác (tự nhập)</SelectItem>
-        </SelectContent>
-      </Select>
-    );
-  };
-
-  // ---- STEP 2 STATES ----
-
-  // Ngày tổ chức
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-
-  // Partner (nhà hàng / khách sạn)
-  const [partnerOptions, setPartnerOptions] = useState([]);
-  const [selectedPartner, setSelectedPartner] = useState("");
-
-  // Dịch vụ của booking
-  const [bookingServices, setBookingServices] = useState([]);
-
-  // Dự trù ngân sách
-  const [budgetRows, setBudgetRows] = useState([
-    { category: "", description: "", unit: "", quantity: 1, cost: 0, note: "" },
-  ]);
-
-  // Timeline chuẩn bị
-  const [prepTimeline, setPrepTimeline] = useState([
-    { time: "", task: "", manager: "" },
-  ]);
-
-  // Phân công nhân sự
-  const [staffAssign, setStaffAssign] = useState([
-    { department: "", duty: "", manager: "", note: "" },
-  ]);
-
-  // Timeline ngày diễn ra
-  const [eventTimeline, setEventTimeline] = useState([
-    { time: "", activity: "", manager: "" },
-  ]);
-
-  async function handleCompletePlan() {
-    try {
-      const payload = {
-        booking_id: selectedBookingId,
-        step1: { goal, audience, eventCategory },
-        step2: {
-          startDate,
-          endDate,
-          selectedPartner,
-          budget: budgetRows,
-          prepTimeline,
-          staffAssign,
-          eventTimeline,
-        },
-        step3: {
-          theme,
-          mainColor,
-          style,
-          message,
-          decoration,
-          programScript,
-          keyActivities,
-        },
-        step4: { checklist: prepChecklist },
-        step5: { marketingChecklist },
-        step6: { eventDayChecklist },
-        step7: { postEvent: postEventRows },
-      };
-
-      // 🔍 Kiểm tra xem kế hoạch cho booking này đã có chưa
-      const checkRes = await fetch(
-        `/api/event-plans?booking_id=${selectedBookingId}`
-      );
-      const checkJson = await checkRes.json();
-
-      // Nếu chưa có thì tạo mới (POST), nếu có thì cập nhật (PATCH)
-      const method = checkJson?.data ? "PATCH" : "POST";
-
-      const res = await fetch("/api/event-plans", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-
-      if (json.success) {
-        alert(
-          `✅ ${
-            method === "POST" ? "Tạo mới" : "Cập nhật"
-          } kế hoạch thành công!`
-        );
-        setOpen(false);
-      } else {
-        alert("❌ Lỗi: " + json.message);
-      }
-    } catch (err) {
-      console.error("Lỗi khi lưu kế hoạch:", err);
-      alert("❌ Đã xảy ra lỗi, vui lòng thử lại.");
-    }
-  }
-
-  // --- MultiSelect component ---
-  const MultiSelect = ({ label, options, selected, setSelected }) => {
-    const [open, setOpen] = useState(false);
-    const toggleSelect = (value) => {
-      if (selected.includes(value))
-        setSelected(selected.filter((v) => v !== value));
-      else setSelected([...selected, value]);
-    };
-    return (
-      <div>
-        <Label>{label}</Label>
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full justify-between mt-1">
-              {selected.length > 0 ? selected.join(", ") : "Chọn..."}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[250px] p-0">
-            <Command>
-              <CommandGroup>
-                {options.map((option) => (
-                  <CommandItem
-                    key={option}
-                    onSelect={() => toggleSelect(option)}
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 h-4 w-4",
-                        selected.includes(option) ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                    {option}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </Command>
-          </PopoverContent>
-        </Popover>
-      </div>
-    );
-  };
-
-  // --- Timeline handlers ---
-  // const handleAddTimeline = () => {
-  //   if (!newTime || !newContent.trim()) return;
-  //   setTimeline([...timeline, { time: newTime, content: newContent }]);
-  //   setNewTime("");
-  //   setNewContent("");
-  // };
-
-  // const handleRemoveTimeline = (index) =>
-  //   setTimeline(timeline.filter((_, i) => i !== index));
-
-  // --- Fetch data ---
-  const fetchPlans = async () => {
-    try {
-      const res = await fetch("/api/event-plans");
-      const data = await res.json();
-      setPlans(data || []);
-    } catch (error) {
-      console.error("Fetch plans error:", error);
-    }
   };
 
   const fetchPartners = async () => {
@@ -357,94 +229,32 @@ export default function EventPlansPage() {
     }
   };
 
-  // --- STEP 3 STATES ---
-  const [theme, setTheme] = useState("");
-  const [mainColor, setMainColor] = useState("");
-  const [style, setStyle] = useState("");
-  const [message, setMessage] = useState("");
-  const [decoration, setDecoration] = useState("");
+  const fetchBookingDetail = async (id) => {
+    try {
+      const res = await fetch(`/api/bookings/${id}`);
+      const data = await res.json();
 
-  // Kịch bản chương trình
-  const [programScript, setProgramScript] = useState([
-    { time: "", content: "" },
-  ]);
-
-  // Hoạt động chính
-  const [keyActivities, setKeyActivities] = useState([
-    { activity: "", importance: "" },
-  ]);
-  const updateProgram = (index, field, value) => {
-    setProgramScript((prev) => {
-      const newRows = [...prev];
-      newRows[index][field] = value;
-      return newRows;
-    });
+      if (data.success) {
+        setBookingInfo(data.data);
+        fetchServiceDetails(data.data);
+      }
+    } catch (err) {
+      console.error("Fetch booking detail error:", err);
+    }
   };
 
-  const updateKeyActivities = (index, field, value) => {
-    setKeyActivities((prev) => {
-      const newRows = [...prev];
-      newRows[index][field] = value;
-      return newRows;
-    });
-  };
-
-  const loadStep3Template = (type) => {
-    console.log("Template requested:", type);
-    console.log("Keys available:", Object.keys(EVENT_TEMPLATES_STEP3));
-
-    const t = EVENT_TEMPLATES_STEP3[type];
-    console.log("Loaded template:", t);
-
-    if (!t) return;
-
-    setTheme(t.theme);
-    setMainColor(t.mainColor);
-    setStyle(t.style);
-    setMessage(t.message);
-    setDecoration(t.decoration);
-
-    setProgramScript(t.program);
-    setKeyActivities(t.activities);
-  };
-  // --- STEP 4 STATES ---
-  const [prepChecklist, setPrepChecklist] = useState([
-    { category: "", description: "", owner: "", deadline: "" },
-  ]);
-  // --- STEP 5 STATES ---
-  const [marketingChecklist, setMarketingChecklist] = useState([
-    { category: "", description: "", owner: "", deadline: "" },
-  ]);
-  // --- STEP 6 STATES ---
-  const [eventDayChecklist, setEventDayChecklist] = useState([
-    { category: "", description: "", owner: "", deadline: "" },
-  ]);
-  // --- STEP 7 STATE ---
-  const [postEventRows, setPostEventRows] = useState([
-    { category: "", description: "", owner: "", deadline: "" },
-  ]);
-
-  const loadStep7Template = (type) => {
-    const t = EVENT_TEMPLATES_STEP7[type];
-    if (!t) return;
-    setPostEventRows(t);
-  };
+  useEffect(() => {
+    fetchCurrentUser();
+    fetchPartners();
+    fetchStaff();
+    fetchBookings();
+  }, []);
 
   useEffect(() => {
     if (step === 2) {
       fetchPartnersForStep2();
     }
   }, [step]);
-
-  useEffect(() => {
-    async function loadAll() {
-      await fetchPartners();
-      await fetchStaff();
-      await fetchBookings();
-    }
-
-    loadAll();
-  }, []);
 
   useEffect(() => {
     async function fetchPlans() {
@@ -487,61 +297,226 @@ export default function EventPlansPage() {
       setDecoration(editingPlan.step3?.decoration || "");
       setProgramScript(editingPlan.step3?.programScript || []);
       setKeyActivities(editingPlan.step3?.keyActivities || []);
+      setPartnerCosts(editingPlan.step3_5?.partnerCosts || []);
+      setDeposits(editingPlan.step3_5?.deposits || []);
       setPrepChecklist(editingPlan.step4?.checklist || []);
       setMarketingChecklist(editingPlan.step5?.marketingChecklist || []);
       setEventDayChecklist(editingPlan.step6?.eventDayChecklist || []);
       setPostEventRows(editingPlan.step7?.postEvent || []);
     } else {
-      // Reset form khi tạo mới
-      setGoal("");
-      setAudience("");
-      setEventCategory("");
-      setStartDate("");
-      setEndDate("");
-      setSelectedPartner("");
-      setBudgetRows([]);
-      setPrepTimeline([]);
-      setStaffAssign([]);
-      setEventTimeline([]);
-      setTheme("");
-      setMainColor("");
-      setStyle("");
-      setMessage("");
-      setDecoration("");
-      setProgramScript([]);
-      setKeyActivities([]);
-      setPrepChecklist([]);
-      setMarketingChecklist([]);
-      setEventDayChecklist([]);
-      setPostEventRows([]);
+      resetForm();
     }
   }, [editingPlan]);
 
-  // --- Utils ---
+  // ============ UTILS ============
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
     const d = new Date(dateStr);
     return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
   };
 
-  const fetchBookingDetail = async (id) => {
-    try {
-      const res = await fetch(`/api/bookings/${id}`);
-      const data = await res.json();
+  const resetForm = () => {
+    setGoal("");
+    setAudience("");
+    setEventCategory("");
+    setStartDate("");
+    setEndDate("");
+    setSelectedPartner("");
+    setBudgetRows([]);
+    setPrepTimeline([]);
+    setStaffAssign([]);
+    setEventTimeline([]);
+    setTheme("");
+    setMainColor("");
+    setStyle("");
+    setMessage("");
+    setDecoration("");
+    setProgramScript([]);
+    setKeyActivities([]);
+    setPartnerCosts([]);
+    setDeposits([]);
+    setPrepChecklist([]);
+    setMarketingChecklist([]);
+    setEventDayChecklist([]);
+    setPostEventRows([]);
+  };
 
-      if (data.success) {
-        setBookingInfo(data.data);
-        fetchServiceDetails(data.data);
+  const StaffSelect = ({ value, onChange, placeholder = "Chọn nhân sự" }) => {
+    const displayName =
+      staff.find((s) => s._id === value)?.full_name || placeholder;
+
+    return (
+      <Select onValueChange={onChange} value={value}>
+        <SelectTrigger className="w-full">
+          <SelectValue>{displayName}</SelectValue>
+        </SelectTrigger>
+
+        <SelectContent>
+          {staff.map((s) => (
+            <SelectItem key={s._id} value={s._id}>
+              {s.full_name}
+              {s.department ? ` — ${s.department.name}` : ""}
+              {s.role ? ` — ${s.role.name}` : ""}
+            </SelectItem>
+          ))}
+
+          <SelectItem value="__custom__">✏️ Khác (tự nhập)</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  };
+
+  // ============ HANDLE SAVE ============
+  const handleSaveStep123 = async () => {
+    try {
+      const payload = {
+        booking_id: selectedBookingId,
+        status: "draft",
+        step1: { goal, audience, eventCategory },
+        step2: {
+          startDate,
+          endDate,
+          selectedPartner,
+          budget: budgetRows,
+          prepTimeline,
+          staffAssign,
+          eventTimeline,
+        },
+        step3: {
+          theme,
+          mainColor,
+          style,
+          message,
+          decoration,
+          programScript,
+          keyActivities,
+        },
+      };
+
+      const checkRes = await fetch(
+        `/api/event-plans?booking_id=${selectedBookingId}`
+      );
+      const checkJson = await checkRes.json();
+      const method = checkJson?.data ? "PATCH" : "POST";
+
+      const res = await fetch("/api/event-plans", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        toast.success(`✅ Lưu bước 1-3 thành công!`);
+        return json.data;
+      } else {
+        toast.error("❌ Lỗi: " + json.message);
+        return null;
       }
     } catch (err) {
-      console.error("Fetch booking detail error:", err);
+      console.error("Lỗi khi lưu:", err);
+      toast.error("❌ Đã xảy ra lỗi");
+      return null;
     }
   };
+
+  const handleSubmitForManagerApproval = async () => {
+    const planData = await handleSaveStep123();
+    if (!planData) return;
+
+    try {
+      const res = await fetch(`/api/event-plans/${planData._id}/submit-for-approval`, {
+        method: "POST",
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        toast.success("✅ Đã gửi yêu cầu phê duyệt cho quản lý!");
+        setOpen(false);
+        fetchBookings();
+      } else {
+        toast.error("❌ Lỗi: " + json.message);
+      }
+    } catch (err) {
+      console.error("Submit approval error:", err);
+      toast.error("❌ Đã xảy ra lỗi");
+    }
+  };
+
+  const handleCompletePlan = async () => {
+    try {
+      const totalCost = partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const totalDeposit = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+      const payload = {
+        booking_id: selectedBookingId,
+        step1: { goal, audience, eventCategory },
+        step2: {
+          startDate,
+          endDate,
+          selectedPartner,
+          budget: budgetRows,
+          prepTimeline,
+          staffAssign,
+          eventTimeline,
+        },
+        step3: {
+          theme,
+          mainColor,
+          style,
+          message,
+          decoration,
+          programScript,
+          keyActivities,
+        },
+        step3_5: {
+          partnerCosts,
+          deposits,
+          totalEstimatedCost: totalCost,
+          totalDeposit,
+          totalRemaining: totalCost - totalDeposit,
+        },
+        step4: { checklist: prepChecklist },
+        step5: { marketingChecklist },
+        step6: { eventDayChecklist },
+        step7: { postEvent: postEventRows },
+      };
+
+      const checkRes = await fetch(
+        `/api/event-plans?booking_id=${selectedBookingId}`
+      );
+      const checkJson = await checkRes.json();
+      const method = checkJson?.data ? "PATCH" : "POST";
+
+      const res = await fetch("/api/event-plans", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        toast.success(`✅ Hoàn tất kế hoạch thành công!`);
+        setOpen(false);
+      } else {
+        toast.error("❌ Lỗi: " + json.message);
+      }
+    } catch (err) {
+      console.error("Lỗi khi lưu kế hoạch:", err);
+      toast.error("❌ Đã xảy ra lỗi");
+    }
+  };
+
+  // ============ UPDATE FUNCTIONS ============
   const updateBudget = (i, field, value) => {
     const updated = [...budgetRows];
     updated[i][field] = value;
     setBudgetRows(updated);
   };
+
   const updatePrep = (index, field, value) => {
     setPrepTimeline((prev) => {
       const newRows = [...prev];
@@ -558,14 +533,44 @@ export default function EventPlansPage() {
     });
   };
 
-  const applyTemplate = (type) => {
-    const template = EVENT_TEMPLATES[type];
-    if (!template) return;
+  const updateEvent = (index, field, value) => {
+    setEventTimeline((prev) => {
+      const newRows = [...prev];
+      newRows[index][field] = value;
+      return newRows;
+    });
+  };
 
-    setBudgetRows(template.budget);
-    setPrepTimeline(template.prepTimeline);
-    setStaffAssign(template.staffAssign);
-    setEventTimeline(template.eventTimeline);
+  const updateProgram = (index, field, value) => {
+    setProgramScript((prev) => {
+      const newRows = [...prev];
+      newRows[index][field] = value;
+      return newRows;
+    });
+  };
+
+  const updateKeyActivities = (index, field, value) => {
+    setKeyActivities((prev) => {
+      const newRows = [...prev];
+      newRows[index][field] = value;
+      return newRows;
+    });
+  };
+
+  const updatePartnerCost = (index, field, value) => {
+    setPartnerCosts((prev) => {
+      const newRows = [...prev];
+      newRows[index][field] = value;
+      return newRows;
+    });
+  };
+
+  const updateDeposit = (index, field, value) => {
+    setDeposits((prev) => {
+      const newRows = [...prev];
+      newRows[index][field] = value;
+      return newRows;
+    });
   };
 
   const updateChecklist = (index, field, value) => {
@@ -583,6 +588,7 @@ export default function EventPlansPage() {
       return updated;
     });
   };
+
   const updateEventDayChecklist = (index, field, value) => {
     setEventDayChecklist((prev) => {
       const updated = [...prev];
@@ -590,6 +596,7 @@ export default function EventPlansPage() {
       return updated;
     });
   };
+
   const updatePostEvent = (index, field, value) => {
     setPostEventRows((prev) => {
       const rows = [...prev];
@@ -598,1313 +605,1274 @@ export default function EventPlansPage() {
     });
   };
 
-  const updateEvent = (index, field, value) => {
-    setEventTimeline((prev) => {
-      const newRows = [...prev];
-      newRows[index][field] = value;
-      return newRows;
-    });
+  // ============ STATUS BADGE ============
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      draft: { label: "Đang soạn thảo", class: "bg-gray-100 text-gray-700", icon: Clock },
+      pending_manager: { label: "Chờ quản lý duyệt", class: "bg-yellow-100 text-yellow-700", icon: Clock },
+      manager_approved: { label: "Quản lý đã duyệt", class: "bg-blue-100 text-blue-700", icon: CheckCircle },
+      pending_customer: { label: "Chờ khách hàng", class: "bg-purple-100 text-purple-700", icon: Clock },
+      customer_approved: { label: "Khách hàng đã duyệt", class: "bg-green-100 text-green-700", icon: CheckCircle },
+      completed: { label: "Hoàn thành", class: "bg-green-100 text-green-700", icon: CheckCircle },
+      cancelled: { label: "Đã hủy", class: "bg-red-100 text-red-700", icon: XCircle },
+    };
+
+    const config = statusConfig[status] || statusConfig.draft;
+    const Icon = config.icon;
+
+    return (
+      <span className={`px-3 py-1 rounded inline-flex items-center gap-1 ${config.class}`}>
+        <Icon className="w-3 h-3" />
+        {config.label}
+      </span>
+    );
   };
 
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">📅 Quản lý Kế hoạch</h1>
-      <div className="flex justify-between items-center">
-        {/* DIALOG LÊN KẾ HOẠCH SỰ KIỆN */}
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {editingPlan
-                  ? "✏️ Chỉnh sửa kế hoạch sự kiện"
-                  : "📝 Lên kế hoạch sự kiện"}
-              </DialogTitle>
-            </DialogHeader>
 
-            {/* Multi-step state */}
-            <div className="flex justify-between items-center mb-4">
-              <p className="font-medium">Bước {step}/7</p>
+      {/* DIALOG */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingPlan
+                ? "✏️ Chỉnh sửa kế hoạch sự kiện"
+                : "📋 Lên kế hoạch sự kiện"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex justify-between items-center mb-4">
+            <p className="font-medium">Bước {step}/8</p>
+            {editingPlan && getStatusBadge(editingPlan.status)}
+          </div>
+
+          {/* STEP 1 */}
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">
+                1. Xác định mục tiêu & loại sự kiện
+              </h2>
+
+              {bookingInfo && (
+                <Card className="p-4 bg-muted">
+                  <p><strong>Loại sự kiện:</strong> {bookingInfo.event_type}</p>
+                  <p><strong>Khách hàng:</strong> {bookingInfo.customer_name}</p>
+                  <p><strong>Địa chỉ:</strong> {bookingInfo.address}</p>
+                  <p><strong>Điện thoại:</strong> {bookingInfo.phone}</p>
+                  <p><strong>Email:</strong> {bookingInfo.email}</p>
+                </Card>
+              )}
+
+              <div className="space-y-2">
+                <Label>Mục tiêu sự kiện</Label>
+                <Input
+                  placeholder="Ví dụ: quảng bá thương hiệu, tri ân khách hàng..."
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Đối tượng tham dự</Label>
+                <Input
+                  placeholder="Ví dụ: nhân viên công ty, đối tác, khách VIP..."
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Loại hình sự kiện</Label>
+                <Input
+                  placeholder="Ví dụ: Gala Dinner, Workshop, Concert..."
+                  value={eventCategory}
+                  onChange={(e) => setEventCategory(e.target.value)}
+                />
+              </div>
             </div>
+          )}
 
-            {/* ================== STEP CONTENT ================== */}
-            {step === 1 && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">
-                  1. Xác định mục tiêu & loại sự kiện
-                </h2>
+          {/* STEP 2 */}
+          {step === 2 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">2. Lập kế hoạch tổng thể (Master Plan)</h2>
 
-                {/* ✅ Hiển thị thông tin Booking */}
-                {bookingInfo ? (
-                  <Card className="p-4 bg-muted">
+              {bookingInfo && (
+                <Card className="p-4 bg-muted">
+                  <h3 className="font-semibold mb-2">Thông tin booking</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <p><b>Ngày:</b> {formatDate(bookingInfo.event_date)}</p>
+                    <p><b>Giờ:</b> {bookingInfo.event_time || "—"}</p>
                     <p>
-                      <strong>Loại sự kiện:</strong> {bookingInfo.event_type}
+                      <b>Khu vực:</b> {bookingInfo.region?.province}, {bookingInfo.region?.district}, {bookingInfo.region?.ward}
                     </p>
-                    <p>
-                      <strong>Khách hàng:</strong> {bookingInfo.customer_name}
-                    </p>
-                    <p>
-                      <strong>Địa chỉ:</strong> {bookingInfo.address}
-                    </p>
-                    <p>
-                      <strong>Điện thoại:</strong> {bookingInfo.phone}
-                    </p>
-                    <p>
-                      <strong>Email:</strong> {bookingInfo.email}
-                    </p>
-                  </Card>
-                ) : (
-                  <p className="text-sm text-gray-500">
-                    Đang tải thông tin booking...
-                  </p>
-                )}
+                    {bookingInfo.custom_location && (
+                      <p><b>Địa điểm:</b> {bookingInfo.custom_location}</p>
+                    )}
+                    <p><b>Quy mô:</b> {bookingInfo.scale} khách</p>
+                  </div>
+                </Card>
+              )}
 
-                {/* ✅ Các input của bước 1 */}
-                <div className="space-y-2">
-                  <Label>Mục tiêu sự kiện</Label>
+              {/* Ngày bắt đầu - kết thúc */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Ngày bắt đầu</Label>
                   <Input
-                    placeholder="Ví dụ: quảng bá thương hiệu, tri ân khách hàng..."
-                    value={goal}
-                    onChange={(e) => setGoal(e.target.value)}
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
                   />
                 </div>
-
-                <div className="space-y-2">
-                  <Label>Đối tượng tham dự</Label>
+                <div>
+                  <Label>Ngày kết thúc</Label>
                   <Input
-                    placeholder="Ví dụ: nhân viên công ty, đối tác, khách VIP..."
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Loại hình sự kiện</Label>
-                  <Input
-                    placeholder="Ví dụ: Gala Dinner, Workshop, Concert..."
-                    value={eventCategory}
-                    onChange={(e) => setEventCategory(e.target.value)}
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
                   />
                 </div>
               </div>
-            )}
 
-            {step === 2 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  2. Lập kế hoạch tổng thể (Master Plan)
-                </h2>
-
-                {/* ✅ THÔNG TIN BOOKING */}
-                {bookingInfo && (
-                  <Card className="p-4 bg-muted">
-                    <h3 className="font-semibold mb-2">Thông tin booking</h3>
-
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <p>
-                        <b>Ngày:</b> {formatDate(bookingInfo.event_date)}
-                      </p>
-                      <p>
-                        <b>Giờ:</b> {bookingInfo.event_time || "—"}
-                      </p>
-
-                      <p>
-                        <b>Khu vực:</b>
-                        {bookingInfo.region?.province},
-                        {bookingInfo.region?.district},
-                        {bookingInfo.region?.ward}
-                      </p>
-
-                      {bookingInfo.custom_location && (
-                        <p>
-                          <b>Địa điểm:</b> {bookingInfo.custom_location}
-                        </p>
-                      )}
-
-                      <p>
-                        <b>Quy mô:</b> {bookingInfo.scale} khách
-                      </p>
-                    </div>
-                  </Card>
-                )}
-
-                {/* ✅ NGÀY BẮT ĐẦU - KẾT THÚC */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Ngày bắt đầu</Label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Ngày kết thúc</Label>
-                    <Input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* ✅ CHỌN PARTNER */}
-                <div>
-                  <Label>Địa điểm đối tác (Nhà hàng / Khách sạn)</Label>
-                  <Select
-                    value={selectedPartner}
-                    onValueChange={setSelectedPartner}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Chọn đối tác" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {partnerOptions.map((p) => (
-                        <SelectItem key={p._id} value={p._id}>
-                          {p.company_name} – {p.address}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* ✅ DỊCH VỤ KHÁCH ĐÃ CHỌN */}
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Dịch vụ khách đã chọn</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Dịch vụ</th>
-                        <th className="border p-1">Khoảng giá</th>
-                        <th className="border p-1">Đơn vị</th>
-                        <th className="border p-1">SL</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {bookingServices.map((s, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">{s.name}</td>
-                          <td className="border p-1">
-                            {s.minPrice.toLocaleString()} –{" "}
-                            {s.maxPrice.toLocaleString()}
-                          </td>
-                          <td className="border p-1">{s.unit}</td>
-                          <td className="border p-1">{s.quantity}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {bookingServices.length === 0 && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      Không có dịch vụ
-                    </p>
-                  )}
-                </Card>
-                <div className="flex gap-2 items-center">
-                  <Label>Tải dữ liệu mẫu:</Label>
-                  <Select onValueChange={applyTemplate}>
-                    <SelectTrigger className="w-[260px]">
-                      <SelectValue placeholder="Chọn mẫu sự kiện" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="wedding">💍 Đám cưới</SelectItem>
-                      <SelectItem value="conference">🏢 Hội nghị</SelectItem>
-                      <SelectItem value="birthday">🎂 Sinh nhật</SelectItem>
-                      <SelectItem value="company_event">
-                        🏢 Sự kiện công ty
-                      </SelectItem>
-                      <SelectItem value="public_event">
-                        🎤 Sự kiện đại chúng
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* ✅ DỰ TRÙ NGÂN SÁCH */}
-                <div>
-                  <h3 className="font-semibold mb-2">Dự trù ngân sách</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th>Hạng mục</th>
-                        <th>Mô tả</th>
-                        <th>Đơn vị</th>
-                        <th>SL</th>
-                        <th>Chi phí</th>
-                        <th>Ghi chú</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {budgetRows.map((row, i) => (
-                        <tr key={i}>
-                          <td>
-                            <Input
-                              value={row.category}
-                              onChange={(e) =>
-                                updateBudget(i, "category", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.description}
-                              onChange={(e) =>
-                                updateBudget(i, "description", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.unit}
-                              onChange={(e) =>
-                                updateBudget(i, "unit", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              type="number"
-                              value={row.quantity}
-                              onChange={(e) =>
-                                updateBudget(i, "quantity", +e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              type="number"
-                              value={row.cost}
-                              onChange={(e) =>
-                                updateBudget(i, "cost", +e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.note}
-                              onChange={(e) =>
-                                updateBudget(i, "note", e.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setBudgetRows([
-                        ...budgetRows,
-                        {
-                          category: "",
-                          description: "",
-                          unit: "",
-                          quantity: 1,
-                          cost: 0,
-                          note: "",
-                        },
-                      ])
-                    }
-                  >
-                    + Thêm hạng mục
-                  </Button>
-
-                  <div className="text-right font-bold mt-3">
-                    Tổng cộng:{" "}
-                    {budgetRows
-                      .reduce((sum, r) => sum + r.cost * r.quantity, 0)
-                      .toLocaleString()}{" "}
-                    ₫
-                  </div>
-                </div>
-
-                {/* ✅ TIMELINE CHUẨN BỊ */}
-                <div>
-                  <h3 className="font-semibold mb-2">Timeline chuẩn bị</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th>Thời gian</th>
-                        <th>Công việc</th>
-                        <th>Phụ trách</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {prepTimeline.map((row, i) => (
-                        <tr key={i}>
-                          <td>
-                            <Input
-                              value={row.time}
-                              onChange={(e) =>
-                                updatePrep(i, "time", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.task}
-                              onChange={(e) =>
-                                updatePrep(i, "task", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td className="border p-1">
-                            {customPrepOwner[i] ? (
-                              <Input
-                                value={row.manager}
-                                onChange={(e) =>
-                                  updatePrep(i, "manager", e.target.value)
-                                }
-                                onBlur={() =>
-                                  setCustomPrepOwner((prev) => ({
-                                    ...prev,
-                                    [i]: false,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <StaffSelect
-                                value={row.manager}
-                                onChange={(v) => {
-                                  if (v === "__custom__") {
-                                    setCustomPrepOwner((prev) => ({
-                                      ...prev,
-                                      [i]: true,
-                                    }));
-                                    updatePrep(i, "manager", "");
-                                  } else {
-                                    updatePrep(i, "manager", v);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setPrepTimeline([
-                        ...prepTimeline,
-                        { time: "", task: "", manager: "" },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </div>
-
-                {/* ✅ PHÂN CÔNG NHÂN SỰ */}
-                <div>
-                  <h3 className="font-semibold mb-2">Phân công nhân sự</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th>Bộ phận</th>
-                        <th>Trách nhiệm</th>
-                        <th>Phụ trách</th>
-                        <th>Ghi chú</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {staffAssign.map((row, i) => (
-                        <tr key={i}>
-                          <td>
-                            <Input
-                              value={row.department}
-                              onChange={(e) =>
-                                updateStaff(i, "department", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.duty}
-                              onChange={(e) =>
-                                updateStaff(i, "duty", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td className="border p-1">
-                            {customEventTimelineOwner[i] ? (
-                              <Input
-                                value={row.manager}
-                                onChange={(e) =>
-                                  updateEvent(i, "manager", e.target.value)
-                                }
-                                onBlur={() =>
-                                  setCustomEventTimelineOwner((prev) => ({
-                                    ...prev,
-                                    [i]: false,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <StaffSelect
-                                value={row.manager}
-                                onChange={(v) => {
-                                  if (v === "__custom__") {
-                                    setCustomEventTimelineOwner((prev) => ({
-                                      ...prev,
-                                      [i]: true,
-                                    }));
-                                    updateEvent(i, "manager", "");
-                                  } else {
-                                    updateEvent(i, "manager", v);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-                          <td>
-                            <Input
-                              value={row.note}
-                              onChange={(e) =>
-                                updateStaff(i, "note", e.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setStaffAssign([
-                        ...staffAssign,
-                        { department: "", duty: "", manager: "", note: "" },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </div>
-
-                {/* ✅ TIMELINE NGÀY DIỄN RA */}
-                <div>
-                  <h3 className="font-semibold mb-2">Timeline ngày diễn ra</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th>Thời gian</th>
-                        <th>Hoạt động</th>
-                        <th>Phụ trách</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {eventTimeline.map((row, i) => (
-                        <tr key={i}>
-                          <td>
-                            <Input
-                              value={row.time}
-                              onChange={(e) =>
-                                updateEvent(i, "time", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td>
-                            <Input
-                              value={row.activity}
-                              onChange={(e) =>
-                                updateEvent(i, "activity", e.target.value)
-                              }
-                            />
-                          </td>
-                          <td className="border p-1">
-                            {customPrepOwner[i] ? (
-                              <Input
-                                value={row.manager}
-                                onChange={(e) =>
-                                  updatePrep(i, "manager", e.target.value)
-                                }
-                                onBlur={() =>
-                                  setCustomPrepOwner((prev) => ({
-                                    ...prev,
-                                    [i]: false,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <StaffSelect
-                                value={row.manager}
-                                onChange={(v) => {
-                                  if (v === "__custom__") {
-                                    setCustomPrepOwner((prev) => ({
-                                      ...prev,
-                                      [i]: true,
-                                    }));
-                                    updatePrep(i, "manager", "");
-                                  } else {
-                                    updatePrep(i, "manager", v);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setEventTimeline([
-                        ...eventTimeline,
-                        { time: "", activity: "", manager: "" },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {step === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  3. Xây dựng ý tưởng & Concept
-                </h2>
-                <div className="space-y-3">
-                  <Label>Chọn mẫu Template (tự động điền):</Label>
-
-                  <Select onValueChange={loadStep3Template}>
-                    <SelectTrigger className="w-[260px]">
-                      <SelectValue placeholder="Chọn mẫu..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="wedding">
-                        💍 Đám cưới (Wedding)
-                      </SelectItem>
-                      <SelectItem value="conference">🎓 Hội nghị</SelectItem>
-                      <SelectItem value="birthday">🎂 Sinh nhật</SelectItem>
-                      <SelectItem value="company">
-                        🏢 Sự kiện công ty
-                      </SelectItem>
-                      <SelectItem value="public">
-                        🎤 Sự kiện đại chúng
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* ✅ INPUT CHỦ ĐỀ */}
-                <Card className="p-4 space-y-3">
-                  <h3 className="font-semibold">Chủ đề sự kiện</h3>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Chủ đề</Label>
-                      <Input
-                        value={theme}
-                        onChange={(e) => setTheme(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Màu sắc chủ đạo</Label>
-                      <Input
-                        value={mainColor}
-                        onChange={(e) => setMainColor(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Phong cách</Label>
-                      <Input
-                        value={style}
-                        onChange={(e) => setStyle(e.target.value)}
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Thông điệp</Label>
-                      <Input
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="col-span-2">
-                      <Label>Trang trí</Label>
-                      <Input
-                        value={decoration}
-                        onChange={(e) => setDecoration(e.target.value)}
-                        placeholder="Backdrop, hoa tươi, hiệu ứng ánh sáng…"
-                      />
-                    </div>
-                  </div>
-                </Card>
-
-                {/* ✅ KỊCH BẢN CHƯƠNG TRÌNH */}
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Kịch bản chương trình</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Thời gian</th>
-                        <th className="border p-1">Nội dung</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {programScript.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.time}
-                              onChange={(e) =>
-                                updateProgram(i, "time", e.target.value)
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              value={row.content}
-                              onChange={(e) =>
-                                updateProgram(i, "content", e.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setProgramScript([
-                        ...programScript,
-                        { time: "", content: "" },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </Card>
-
-                {/* ✅ HOẠT ĐỘNG CHÍNH */}
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Hoạt động chính</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Hoạt động</th>
-                        <th className="border p-1">Mức độ quan trọng</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {keyActivities.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.activity}
-                              onChange={(e) =>
-                                updateKeyActivities(
-                                  i,
-                                  "activity",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Select
-                              value={row.importance}
-                              onValueChange={(v) =>
-                                updateKeyActivities(i, "importance", v)
-                              }
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Chọn mức độ" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Cao">Cao</SelectItem>
-                                <SelectItem value="Trung bình">
-                                  Trung bình
-                                </SelectItem>
-                                <SelectItem value="Thấp">Thấp</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setKeyActivities([
-                        ...keyActivities,
-                        { activity: "", importance: "" },
-                      ])
-                    }
-                  >
-                    + Thêm hoạt động
-                  </Button>
-                </Card>
-              </div>
-            )}
-
-            {step === 4 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  4. Chuẩn bị chi tiết (Pre-event)
-                </h2>
-
-                {/* CHECKLIST TABLE */}
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Checklist chuẩn bị</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Hạng mục</th>
-                        <th className="border p-1">Mô tả</th>
-                        <th className="border p-1">Phụ trách</th>
-                        <th className="border p-1">Deadline</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {prepChecklist.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.category}
-                              onChange={(e) =>
-                                updateChecklist(i, "category", e.target.value)
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              value={row.description}
-                              onChange={(e) =>
-                                updateChecklist(
-                                  i,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                              placeholder="Mô tả công việc..."
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            {customPrepOwner[i] ? (
-                              <Input
-                                value={row.owner}
-                                onChange={(e) =>
-                                  updateChecklist(i, "owner", e.target.value)
-                                }
-                                onBlur={() =>
-                                  setCustomPrepOwner((prev) => ({
-                                    ...prev,
-                                    [i]: false,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <StaffSelect
-                                value={row.owner}
-                                onChange={(v) => {
-                                  if (v === "__custom__") {
-                                    setCustomPrepOwner((prev) => ({
-                                      ...prev,
-                                      [i]: true,
-                                    }));
-                                    updateChecklist(i, "owner", "");
-                                  } else {
-                                    updateChecklist(i, "owner", v);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              type="date"
-                              value={row.deadline}
-                              onChange={(e) =>
-                                updateChecklist(i, "deadline", e.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setPrepChecklist([
-                        ...prepChecklist,
-                        {
-                          category: "",
-                          description: "",
-                          owner: "",
-                          deadline: "",
-                        },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </Card>
-              </div>
-            )}
-
-            {step === 5 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  5. Truyền thông & Marketing
-                </h2>
-
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Checklist Marketing</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Hạng mục</th>
-                        <th className="border p-1">Mô tả</th>
-                        <th className="border p-1">Phụ trách</th>
-                        <th className="border p-1">Deadline</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {marketingChecklist.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.category}
-                              onChange={(e) =>
-                                updateMarketingChecklist(
-                                  i,
-                                  "category",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              value={row.description}
-                              onChange={(e) =>
-                                updateMarketingChecklist(
-                                  i,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <td className="border p-1">
-                              {customMarketingOwner[i] ? (
-                                <Input
-                                  value={row.owner}
-                                  onChange={(e) =>
-                                    updateMarketingChecklist(
-                                      i,
-                                      "owner",
-                                      e.target.value
-                                    )
-                                  }
-                                  onBlur={() =>
-                                    setCustomMarketingOwner((prev) => ({
-                                      ...prev,
-                                      [i]: false,
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                <StaffSelect
-                                  value={row.owner}
-                                  onChange={(v) => {
-                                    if (v === "__custom__") {
-                                      setCustomMarketingOwner((prev) => ({
-                                        ...prev,
-                                        [i]: true,
-                                      }));
-                                      updateMarketingChecklist(i, "owner", "");
-                                    } else {
-                                      updateMarketingChecklist(i, "owner", v);
-                                    }
-                                  }}
-                                />
-                              )}
-                            </td>
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              type="date"
-                              value={row.deadline}
-                              onChange={(e) =>
-                                updateMarketingChecklist(
-                                  i,
-                                  "deadline",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setMarketingChecklist([
-                        ...marketingChecklist,
-                        {
-                          category: "",
-                          description: "",
-                          owner: "",
-                          deadline: "",
-                        },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </Card>
-              </div>
-            )}
-
-            {step === 6 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  6. Triển khai ngày sự kiện (Event Day Checklist)
-                </h2>
-                <Select
-                  onValueChange={(type) =>
-                    setEventDayChecklist(EVENT_TEMPLATES_STEP6[type])
-                  }
-                >
-                  <SelectTrigger className="w-[260px]">
-                    <SelectValue placeholder="Chọn mẫu checklist" />
+              {/* Chọn Partner */}
+              <div>
+                <Label>Địa điểm đối tác (Nhà hàng / Khách sạn)</Label>
+                <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn đối tác" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="wedding">💍 Đám cưới</SelectItem>
-                    <SelectItem value="conference">🏢 Hội nghị</SelectItem>
-                    <SelectItem value="birthday">🎂 Sinh nhật</SelectItem>
-                    <SelectItem value="company_event">
-                      🏙️ Sự kiện công ty
-                    </SelectItem>
-                    <SelectItem value="public_event">
-                      🎤 Sự kiện đại chúng
-                    </SelectItem>
+                    {partnerOptions.map((p) => (
+                      <SelectItem key={p._id} value={p._id}>
+                        {p.company_name} — {p.address}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Checklist ngày diễn ra</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Hạng mục</th>
-                        <th className="border p-1">Mô tả</th>
-                        <th className="border p-1">Phụ trách</th>
-                        <th className="border p-1">Deadline</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {eventDayChecklist.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.category}
-                              onChange={(e) =>
-                                updateEventDayChecklist(
-                                  i,
-                                  "category",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              value={row.description}
-                              onChange={(e) =>
-                                updateEventDayChecklist(
-                                  i,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <td className="border p-1">
-                              {customEventDayOwner[i] ? (
-                                <Input
-                                  value={row.owner}
-                                  onChange={(e) =>
-                                    updateEventDayChecklist(
-                                      i,
-                                      "owner",
-                                      e.target.value
-                                    )
-                                  }
-                                  onBlur={() =>
-                                    setCustomEventDayOwner((prev) => ({
-                                      ...prev,
-                                      [i]: false,
-                                    }))
-                                  }
-                                />
-                              ) : (
-                                <StaffSelect
-                                  value={row.owner}
-                                  onChange={(v) => {
-                                    if (v === "__custom__") {
-                                      setCustomEventDayOwner((prev) => ({
-                                        ...prev,
-                                        [i]: true,
-                                      }));
-                                      updateEventDayChecklist(i, "owner", "");
-                                    } else {
-                                      updateEventDayChecklist(i, "owner", v);
-                                    }
-                                  }}
-                                />
-                              )}
-                            </td>
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              type="date"
-                              value={row.deadline}
-                              onChange={(e) =>
-                                updateEventDayChecklist(
-                                  i,
-                                  "deadline",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setEventDayChecklist([
-                        ...eventDayChecklist,
-                        {
-                          category: "",
-                          description: "",
-                          owner: "",
-                          deadline: "",
-                        },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </Card>
               </div>
-            )}
 
-            {step === 7 && (
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold">
-                  7. Hậu sự kiện (Post-event)
-                </h2>
-
-                {/* Nút tải template */}
-                <div className="flex gap-2 items-center">
-                  <Label>Tải dữ liệu mẫu:</Label>
-                  <Select onValueChange={loadStep7Template}>
-                    <SelectTrigger className="w-[260px]">
-                      <SelectValue placeholder="Chọn mẫu sự kiện" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="wedding">💍 Đám cưới</SelectItem>
-                      <SelectItem value="conference">🏢 Hội nghị</SelectItem>
-                      <SelectItem value="birthday">🎂 Sinh nhật</SelectItem>
-                      <SelectItem value="company_event">
-                        🏙️ Sự kiện công ty
-                      </SelectItem>
-                      <SelectItem value="public_event">
-                        🎤 Sự kiện đại chúng
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <Card className="p-4">
-                  <h3 className="font-semibold mb-2">Hậu sự kiện</h3>
-
-                  <table className="w-full border text-sm">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="border p-1">Hạng mục</th>
-                        <th className="border p-1">Mô tả</th>
-                        <th className="border p-1">Phụ trách</th>
-                        <th className="border p-1">Deadline</th>
+              {/* Dịch vụ khách đã chọn */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Dịch vụ khách đã chọn</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Dịch vụ</th>
+                      <th className="border p-1">Khoảng giá</th>
+                      <th className="border p-1">Đơn vị</th>
+                      <th className="border p-1">SL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookingServices.map((s, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">{s.name}</td>
+                        <td className="border p-1">
+                          {s.minPrice.toLocaleString()} — {s.maxPrice.toLocaleString()}
+                        </td>
+                        <td className="border p-1">{s.unit}</td>
+                        <td className="border p-1">{s.quantity}</td>
                       </tr>
-                    </thead>
+                    ))}
+                  </tbody>
+                </table>
+                {bookingServices.length === 0 && (
+                  <p className="text-sm text-gray-500 mt-2">Không có dịch vụ</p>
+                )}
+              </Card>
 
-                    <tbody>
-                      {postEventRows.map((row, i) => (
-                        <tr key={i}>
-                          <td className="border p-1">
-                            <Input
-                              value={row.category}
-                              onChange={(e) =>
-                                updatePostEvent(i, "category", e.target.value)
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              value={row.description}
-                              onChange={(e) =>
-                                updatePostEvent(
-                                  i,
-                                  "description",
-                                  e.target.value
-                                )
-                              }
-                            />
-                          </td>
-
-                          <td className="border p-1">
-                            {customPostOwner[i] ? (
-                              <Input
-                                value={row.owner}
-                                onChange={(e) =>
-                                  updatePostEvent(i, "owner", e.target.value)
-                                }
-                                onBlur={() =>
-                                  setCustomPostOwner((prev) => ({
-                                    ...prev,
-                                    [i]: false,
-                                  }))
-                                }
-                              />
-                            ) : (
-                              <StaffSelect
-                                value={row.owner}
-                                onChange={(v) => {
-                                  if (v === "__custom__") {
-                                    setCustomPostOwner((prev) => ({
-                                      ...prev,
-                                      [i]: true,
-                                    }));
-                                    updatePostEvent(i, "owner", "");
-                                  } else {
-                                    updatePostEvent(i, "owner", v);
-                                  }
-                                }}
-                              />
-                            )}
-                          </td>
-
-                          <td className="border p-1">
-                            <Input
-                              type="date"
-                              value={row.deadline}
-                              onChange={(e) =>
-                                updatePostEvent(i, "deadline", e.target.value)
-                              }
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-
-                  {/* Add row */}
-                  <Button
-                    className="mt-2"
-                    onClick={() =>
-                      setPostEventRows([
-                        ...postEventRows,
-                        {
-                          category: "",
-                          description: "",
-                          owner: "",
-                          deadline: "",
-                        },
-                      ])
-                    }
-                  >
-                    + Thêm dòng
-                  </Button>
-                </Card>
-              </div>
-            )}
-            {/* ================== NAVIGATION BUTTONS ================== */}
-            <div className="flex justify-between mt-6">
-              <Button disabled={step === 1} onClick={() => setStep(step - 1)}>
-                ← Quay lại
-              </Button>
-
-              {step < 7 ? (
-                <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
-              ) : (
+              {/* Dự trù ngân sách */}
+              <div>
+                <h3 className="font-semibold mb-2">Dự trù ngân sách</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th>Hạng mục</th>
+                      <th>Mô tả</th>
+                      <th>Đơn vị</th>
+                      <th>SL</th>
+                      <th>Chi phí</th>
+                      <th>Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budgetRows.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) => updateBudget(i, "category", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) => updateBudget(i, "description", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.unit}
+                            onChange={(e) => updateBudget(i, "unit", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.quantity}
+                            onChange={(e) => updateBudget(i, "quantity", +e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.cost}
+                            onChange={(e) => updateBudget(i, "cost", +e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.note}
+                            onChange={(e) => updateBudget(i, "note", e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
                 <Button
-                  className="bg-green-600 text-white"
-                  onClick={handleCompletePlan}
+                  className="mt-2"
+                  onClick={() =>
+                    setBudgetRows([
+                      ...budgetRows,
+                      { category: "", description: "", unit: "", quantity: 1, cost: 0, note: "" },
+                    ])
+                  }
                 >
-                  ✅ Hoàn tất kế hoạch sự kiện
+                  + Thêm hạng mục
                 </Button>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+                <div className="text-right font-bold mt-3">
+                  Tổng cộng:{" "}
+                  {budgetRows.reduce((sum, r) => sum + r.cost * r.quantity, 0).toLocaleString()} ₫
+                </div>
+              </div>
 
-      {/* Danh sách booking confirmed */}
+              {/* Timeline chuẩn bị */}
+              <div>
+                <h3 className="font-semibold mb-2">Timeline chuẩn bị</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Công việc</th>
+                      <th>Phụ trách</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {prepTimeline.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.time}
+                            onChange={(e) => updatePrep(i, "time", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.task}
+                            onChange={(e) => updatePrep(i, "task", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          {customPrepOwner[i] ? (
+                            <Input
+                              value={row.manager}
+                              onChange={(e) => updatePrep(i, "manager", e.target.value)}
+                              onBlur={() =>
+                                setCustomPrepOwner((prev) => ({ ...prev, [i]: false }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.manager}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomPrepOwner((prev) => ({ ...prev, [i]: true }));
+                                  updatePrep(i, "manager", "");
+                                } else {
+                                  updatePrep(i, "manager", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setPrepTimeline([...prepTimeline, { time: "", task: "", manager: "" }])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </div>
+
+              {/* Phân công nhân sự */}
+              <div>
+                <h3 className="font-semibold mb-2">Phân công nhân sự</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th>Bộ phận</th>
+                      <th>Trách nhiệm</th>
+                      <th>Phụ trách</th>
+                      <th>Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {staffAssign.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.department}
+                            onChange={(e) => updateStaff(i, "department", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.duty}
+                            onChange={(e) => updateStaff(i, "duty", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          {customStaffAssignOwner[i] ? (
+                            <Input
+                              value={row.manager}
+                              onChange={(e) => updateStaff(i, "manager", e.target.value)}
+                              onBlur={() =>
+                                setCustomStaffAssignOwner((prev) => ({ ...prev, [i]: false }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.manager}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomStaffAssignOwner((prev) => ({ ...prev, [i]: true }));
+                                  updateStaff(i, "manager", "");
+                                } else {
+                                  updateStaff(i, "manager", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.note}
+                            onChange={(e) => updateStaff(i, "note", e.target.value)}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setStaffAssign([
+                      ...staffAssign,
+                      { department: "", duty: "", manager: "", note: "" },
+                    ])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </div>
+
+              {/* Timeline ngày diễn ra */}
+              <div>
+                <h3 className="font-semibold mb-2">Timeline ngày diễn ra</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th>Thời gian</th>
+                      <th>Hoạt động</th>
+                      <th>Phụ trách</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {eventTimeline.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.time}
+                            onChange={(e) => updateEvent(i, "time", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.activity}
+                            onChange={(e) => updateEvent(i, "activity", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          {customEventTimelineOwner[i] ? (
+                            <Input
+                              value={row.manager}
+                              onChange={(e) => updateEvent(i, "manager", e.target.value)}
+                              onBlur={() =>
+                                setCustomEventTimelineOwner((prev) => ({ ...prev, [i]: false }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.manager}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomEventTimelineOwner((prev) => ({ ...prev, [i]: true }));
+                                  updateEvent(i, "manager", "");
+                                } else {
+                                  updateEvent(i, "manager", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setEventTimeline([...eventTimeline, { time: "", activity: "", manager: "" }])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3 */}
+          {step === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">3. Xây dựng ý tưởng & Concept</h2>
+
+              {/* Input chủ đề */}
+              <Card className="p-4 space-y-3">
+                <h3 className="font-semibold">Chủ đề sự kiện</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Chủ đề</Label>
+                    <Input
+                      value={theme}
+                      onChange={(e) => setTheme(e.target.value)}
+                      placeholder="VD: Rustic Wedding, Tech Innovation..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Màu sắc chủ đạo</Label>
+                    <Input
+                      value={mainColor}
+                      onChange={(e) => setMainColor(e.target.value)}
+                      placeholder="VD: Trắng - Hồng pastel"
+                    />
+                  </div>
+                  <div>
+                    <Label>Phong cách</Label>
+                    <Input
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value)}
+                      placeholder="VD: Hiện đại, Cổ điển, Tối giản..."
+                    />
+                  </div>
+                  <div>
+                    <Label>Thông điệp</Label>
+                    <Input
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="VD: Together We Grow"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <Label>Trang trí</Label>
+                    <Textarea
+                      value={decoration}
+                      onChange={(e) => setDecoration(e.target.value)}
+                      placeholder="Backdrop, hoa tươi, hiệu ứng ánh sáng..."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Kịch bản chương trình */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Kịch bản chương trình</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Thời gian</th>
+                      <th className="border p-1">Nội dung</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {programScript.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.time}
+                            onChange={(e) => updateProgram(i, "time", e.target.value)}
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.content}
+                            onChange={(e) => updateProgram(i, "content", e.target.value)}
+                            placeholder="VD: Khai mạc, Phát biểu chào mừng..."
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setProgramScript([...programScript, { time: "", content: "" }])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </Card>
+
+              {/* Hoạt động chính */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Hoạt động chính</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hoạt động</th>
+                      <th className="border p-1">Mức độ quan trọng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {keyActivities.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.activity}
+                            onChange={(e) =>
+                              updateKeyActivities(i, "activity", e.target.value)
+                            }
+                            placeholder="VD: Lễ ký kết hợp đồng, Mini game..."
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Select
+                            value={row.importance}
+                            onValueChange={(v) => updateKeyActivities(i, "importance", v)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn mức độ" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Cao">⭐⭐⭐ Cao</SelectItem>
+                              <SelectItem value="Trung bình">⭐⭐ Trung bình</SelectItem>
+                              <SelectItem value="Thấp">⭐ Thấp</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setKeyActivities([...keyActivities, { activity: "", importance: "" }])
+                  }
+                >
+                  + Thêm hoạt động
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 4 (mới) - KẾ HOẠCH CHI PHÍ */}
+          {step === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">4. Kế hoạch chi phí</h2>
+
+              {/* Chi phí đối tác */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Chi phí yêu cầu từ đối tác</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Đối tác</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Số tiền</th>
+                      <th className="border p-1">Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partnerCosts.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Select
+                            value={row.partnerId}
+                            onValueChange={(v) => {
+                              updatePartnerCost(i, "partnerId", v);
+                              const partner = partnerOptions.find(p => p._id === v);
+                              updatePartnerCost(i, "partnerName", partner?.company_name || "");
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn đối tác" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {partnerOptions.map((p) => (
+                                <SelectItem key={p._id} value={p._id}>
+                                  {p.company_name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updatePartnerCost(i, "description", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.amount}
+                            onChange={(e) =>
+                              updatePartnerCost(i, "amount", +e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.note}
+                            onChange={(e) =>
+                              updatePartnerCost(i, "note", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setPartnerCosts([
+                      ...partnerCosts,
+                      { partnerId: "", partnerName: "", description: "", amount: 0, note: "" },
+                    ])
+                  }
+                >
+                  + Thêm đối tác
+                </Button>
+              </Card>
+
+              {/* Đặt cọc */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Kế hoạch đặt cọc</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Số tiền</th>
+                      <th className="border p-1">Hạn thanh toán</th>
+                      <th className="border p-1">Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deposits.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateDeposit(i, "description", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.amount}
+                            onChange={(e) =>
+                              updateDeposit(i, "amount", +e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="date"
+                            value={row.dueDate}
+                            onChange={(e) =>
+                              updateDeposit(i, "dueDate", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.note}
+                            onChange={(e) =>
+                              updateDeposit(i, "note", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setDeposits([
+                      ...deposits,
+                      { description: "", amount: 0, dueDate: "", status: "pending", note: "" },
+                    ])
+                  }
+                >
+                  + Thêm đợt đặt cọc
+                </Button>
+              </Card>
+
+              {/* Tổng hợp */}
+              <Card className="p-4 bg-blue-50">
+                <h3 className="font-semibold mb-2">Tổng hợp chi phí</h3>
+                <div className="space-y-1">
+                  <p>
+                    <strong>Tổng chi phí đối tác:</strong>{" "}
+                    {partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()} ₫
+                  </p>
+                  <p>
+                    <strong>Tổng đặt cọc:</strong>{" "}
+                    {deposits.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()} ₫
+                  </p>
+                  <p className="text-lg font-bold text-blue-700">
+                    <strong>Còn lại:</strong>{" "}
+                    {(
+                      partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0) -
+                      deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
+                    ).toLocaleString()}{" "}
+                    ₫
+                  </p>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 5 - CHUẨN BỊ CHI TIẾT */}
+          {step === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">5. Chuẩn bị chi tiết (Pre-event)</h2>
+
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Checklist chuẩn bị</h3>
+
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hạng mục</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Phụ trách</th>
+                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {prepChecklist.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) =>
+                              updateChecklist(i, "category", e.target.value)
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateChecklist(i, "description", e.target.value)
+                            }
+                            placeholder="Mô tả công việc..."
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          {customStep4Owner[i] ? (
+                            <Input
+                              value={row.owner}
+                              onChange={(e) =>
+                                updateChecklist(i, "owner", e.target.value)
+                              }
+                              onBlur={() =>
+                                setCustomStep4Owner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.owner}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomStep4Owner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
+                                  updateChecklist(i, "owner", "");
+                                } else {
+                                  updateChecklist(i, "owner", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.deadline}
+                            onChange={(e) =>
+                              updateChecklist(i, "deadline", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setPrepChecklist([
+                      ...prepChecklist,
+                      {
+                        category: "",
+                        description: "",
+                        owner: "",
+                        deadline: "",
+                      },
+                    ])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 6 - TRUYỀN THÔNG & MARKETING */}
+          {step === 6 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">6. Truyền thông & Marketing</h2>
+
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Checklist Marketing</h3>
+
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hạng mục</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Phụ trách</th>
+                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {marketingChecklist.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) =>
+                              updateMarketingChecklist(
+                                i,
+                                "category",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateMarketingChecklist(
+                                i,
+                                "description",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          {customStep5Owner[i] ? (
+                            <Input
+                              value={row.owner}
+                              onChange={(e) =>
+                                updateMarketingChecklist(
+                                  i,
+                                  "owner",
+                                  e.target.value
+                                )
+                              }
+                              onBlur={() =>
+                                setCustomStep5Owner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.owner}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomStep5Owner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
+                                  updateMarketingChecklist(i, "owner", "");
+                                } else {
+                                  updateMarketingChecklist(i, "owner", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.deadline}
+                            onChange={(e) =>
+                              updateMarketingChecklist(
+                                i,
+                                "deadline",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setMarketingChecklist([
+                      ...marketingChecklist,
+                      {
+                        category: "",
+                        description: "",
+                        owner: "",
+                        deadline: "",
+                      },
+                    ])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 7 - TRIỂN KHAI NGÀY SỰ KIỆN */}
+          {step === 7 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">
+                7. Triển khai ngày sự kiện (Event Day)
+              </h2>
+
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Checklist ngày diễn ra</h3>
+
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hạng mục</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Phụ trách</th>
+                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {eventDayChecklist.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) =>
+                              updateEventDayChecklist(
+                                i,
+                                "category",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateEventDayChecklist(
+                                i,
+                                "description",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          {customStep6Owner[i] ? (
+                            <Input
+                              value={row.owner}
+                              onChange={(e) =>
+                                updateEventDayChecklist(
+                                  i,
+                                  "owner",
+                                  e.target.value
+                                )
+                              }
+                              onBlur={() =>
+                                setCustomStep6Owner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.owner}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomStep6Owner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
+                                  updateEventDayChecklist(i, "owner", "");
+                                } else {
+                                  updateEventDayChecklist(i, "owner", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.deadline}
+                            onChange={(e) =>
+                              updateEventDayChecklist(
+                                i,
+                                "deadline",
+                                e.target.value
+                              )
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setEventDayChecklist([
+                      ...eventDayChecklist,
+                      {
+                        category: "",
+                        description: "",
+                        owner: "",
+                        deadline: "",
+                      },
+                    ])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* STEP 8 - HẬU SỰ KIỆN */}
+          {step === 8 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">8. Hậu sự kiện (Post-event)</h2>
+
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Checklist sau sự kiện</h3>
+
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hạng mục</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Phụ trách</th>
+                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {postEventRows.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) =>
+                              updatePostEvent(i, "category", e.target.value)
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updatePostEvent(i, "description", e.target.value)
+                            }
+                          />
+                        </td>
+
+                        <td className="border p-1">
+                          {customStep7Owner[i] ? (
+                            <Input
+                              value={row.owner}
+                              onChange={(e) =>
+                                updatePostEvent(i, "owner", e.target.value)
+                              }
+                              onBlur={() =>
+                                setCustomStep7Owner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
+                              }
+                            />
+                          ) : (
+                            <StaffSelect
+                              value={row.owner}
+                              onChange={(v) => {
+                                if (v === "__custom__") {
+                                  setCustomStep7Owner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
+                                  updatePostEvent(i, "owner", "");
+                                } else {
+                                  updatePostEvent(i, "owner", v);
+                                }
+                              }}
+                            />
+                          )}
+                        </td>
+
+                        <td className="border p-1">
+                          <Input
+                            type="datetime-local"
+                            value={row.deadline}
+                            onChange={(e) =>
+                              updatePostEvent(i, "deadline", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setPostEventRows([
+                      ...postEventRows,
+                      {
+                        category: "",
+                        description: "",
+                        owner: "",
+                        deadline: "",
+                      },
+                    ])
+                  }
+                >
+                  + Thêm dòng
+                </Button>
+              </Card>
+            </div>
+          )}
+
+          {/* NAVIGATION BUTTONS */}
+          <div className="flex justify-between mt-6">
+            <Button disabled={step === 1} onClick={() => setStep(step - 1)}>
+              ← Quay lại
+            </Button>
+
+            {step === 3 && !editingPlan?.approvals?.manager?.approved && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleSaveStep123}>
+                  💾 Lưu nháp
+                </Button>
+                <Button className="bg-blue-600" onClick={handleSubmitForManagerApproval}>
+                  📤 Gửi phê duyệt
+                </Button>
+              </div>
+            )}
+
+            {step < 8 && step !== 3 && (
+              <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
+            )}
+
+            {step === 8 && (
+              <Button
+                className="bg-green-600 text-white"
+                onClick={handleCompletePlan}
+              >
+                ✅ Hoàn tất kế hoạch
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DANH SÁCH BOOKINGS */}
       <div className="flex flex-col md:flex-row gap-3 mb-4">
-        {/* Ô tìm kiếm theo phone/email */}
         <div className="flex-1">
           <Input
             placeholder="🔍 Tìm theo số điện thoại hoặc email..."
@@ -1913,21 +1881,15 @@ export default function EventPlansPage() {
           />
         </div>
 
-        {/* Bộ lọc theo loại sự kiện */}
         <Select value={filterType} onValueChange={setFilterType}>
           <SelectTrigger className="w-[250px]">
             <SelectValue placeholder="Lọc theo loại sự kiện" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả loại sự kiện</SelectItem>
-            <SelectItem value="Tiệc cưới">🍽️ Tiệc cưới</SelectItem>
             <SelectItem value="Hội nghị">🏢 Hội nghị</SelectItem>
-            <SelectItem value="Sinh nhật">🎂 Sinh nhật</SelectItem>
             <SelectItem value="Sự kiện công ty">🏙️ Sự kiện công ty</SelectItem>
-            <SelectItem value="Sự kiện đại chúng">
-              🎤 Sự kiện đại chúng
-            </SelectItem>
-            <SelectItem value="Khác">✨ Khác</SelectItem>
+            <SelectItem value="Sự kiện đại chúng">🎤 Sự kiện đại chúng</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1944,93 +1906,85 @@ export default function EventPlansPage() {
               filterType === "all" || b.event_type === filterType;
             return matchSearch && matchType;
           })
-          .map((b) => (
-            <Card key={b.id}>
-              <CardHeader>
-                <CardTitle>{b.customer_name}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p>
-                  <b>Ngày tổ chức:</b> {formatDate(b.event_date)}
-                </p>
-                <p>
-                  <b>Loại sự kiện:</b> {b.event_type}
-                </p>
-                <p>
-                  <b>Địa điểm:</b> {b.address}
-                </p>
-                {(() => {
-                  const plan = plansMap[b._id];
-                  const status = plan?.status;
+          .map((b) => {
+            const plan = plansMap[b._id];
+            const status = plan?.status;
 
-                  // Nếu đã có trạng thái final thì chỉ hiển thị badge
-                  if (
-                    ["csconfirmed", "cancelled", "completed"].includes(status)
-                  ) {
-                    return (
-                      <div className="mt-3">
-                        {status === "csconfirmed" && (
-                          <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded">
-                            Đã xác nhận
-                          </span>
-                        )}
-                        {status === "cancelled" && (
-                          <span className="px-3 py-1 bg-red-100 text-red-700 rounded">
-                            Đã hủy
-                          </span>
-                        )}
-                        {status === "completed" && (
-                          <span className="px-3 py-1 bg-green-100 text-green-700 rounded">
-                            Đã hoàn thành
-                          </span>
-                        )}
-                      </div>
-                    );
-                  }
+            return (
+              <Card key={b._id}>
+                <CardHeader>
+                  <CardTitle>{b.customer_name}</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p><b>Ngày tổ chức:</b> {formatDate(b.event_date)}</p>
+                  <p><b>Loại sự kiện:</b> {b.event_type}</p>
+                  <p><b>Địa điểm:</b> {b.address}</p>
 
-                  // Nếu KHÔNG có plan → hiển thị nút tạo mới
-                  if (!plan) {
-                    return (
+                  {plan ? (
+                    <div className="mt-3">
+                      {getStatusBadge(status)}
+                    </div>
+                  ) : (
+                    <div className="mt-3">
+                      <span className="px-3 py-1 rounded inline-flex items-center gap-1 bg-rose-100 text-rose-700 border border-rose-200 font-medium">
+                        <Sparkles className="w-3 h-3" />
+                        Chưa lên kế hoạch
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="mt-3">
+                    {!plan ? (
                       <Button
+                        className="w-full"
                         onClick={async () => {
                           setEditingPlan(null);
                           setSelectedBookingId(b._id);
                           await fetchBookingDetail(b._id);
+                          setStep(1);
                           setOpen(true);
                         }}
                       >
-                        📝 Lên kế hoạch sự kiện
+                        📋 Lên kế hoạch sự kiện
                       </Button>
-                    );
-                  }
+                    ) : (
+                      <Button
+                        className="w-full"
+                        variant="outline"
+                        onClick={async () => {
+                          const res = await fetch(
+                            `/api/event-plans?booking_id=${b._id}`
+                          );
+                          const json = await res.json();
 
-                  // Nếu có plan nhưng chưa có status → hiển thị nút sửa
-                  return (
-                    <Button
-                      variant="outline"
-                      onClick={async () => {
-                        const res = await fetch(
-                          `/api/event-plans?booking_id=${b._id}`
-                        );
-                        const json = await res.json();
-
-                        if (json.success && json.data) {
-                          setEditingPlan(json.data);
-                          setSelectedBookingId(b._id);
-                          await fetchBookingDetail(b._id);
-                          setOpen(true);
-                        } else {
-                          alert("❌ Không thể tải kế hoạch!");
-                        }
-                      }}
-                    >
-                      ✏️ Xem / Sửa kế hoạch
-                    </Button>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          ))}
+                          if (json.success && json.data) {
+                            setEditingPlan(json.data);
+                            setSelectedBookingId(b._id);
+                            await fetchBookingDetail(b._id);
+                            
+                            // Điều hướng đến bước phù hợp
+                            if (status === "draft" || status === "pending_manager") {
+                              setStep(1);
+                            } else if (status === "customer_approved") {
+                              setStep(4);
+                            } else {
+                              setStep(1);
+                            }
+                            
+                            setOpen(true);
+                          } else {
+                            toast.error("❌ Không thể tải kế hoạch!");
+                          }
+                        }}
+                      >
+                        ✏️ Xem / Sửa kế hoạch
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
       </div>
     </div>
   );

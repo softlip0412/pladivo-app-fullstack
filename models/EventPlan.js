@@ -8,11 +8,35 @@ const EventPlanSchema = new mongoose.Schema(
       required: true,
     },
 
-    // ======= TRẠNG THÁI =======
+    // ======= TRẠNG THÁI TỔNG QUAN =======
     status: {
       type: String,
-      enum: ["pending", "confirmed", "csconfirmed", "cancelled", "completed"],
-      default: "pending",
+      enum: [
+        "draft", // Đang soạn thảo (Step 1-3) - Default status
+        "pending_manager", // Chờ quản lý duyệt
+        "manager_approved", // Quản lý đã duyệt
+        "pending_customer", // Chờ khách hàng duyệt
+        "customer_approved", // Khách hàng đã duyệt, tiếp tục Step 4-7
+        "in_progress", // Đang thực hiện
+        "completed", // Hoàn thành
+        "cancelled", // Đã hủy
+      ],
+      default: "draft",
+    },
+
+    // ======= QUẢN LÝ PHÊ DUYỆT =======
+    approvals: {
+      manager: {
+        approved: { type: Boolean, default: false },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
+        approvedAt: Date,
+        comment: String,
+      },
+      customer: {
+        approved: { type: Boolean, default: false },
+        approvedAt: Date,
+        comment: String,
+      },
     },
 
     // ======= STEP 1 =======
@@ -24,11 +48,10 @@ const EventPlanSchema = new mongoose.Schema(
 
     // ======= STEP 2 =======
     step2: {
-      startDate: String,
-      endDate: String,
+      startDate: Date, // ✅ Đổi sang Date
+      endDate: Date, // ✅ Đổi sang Date
       selectedPartner: { type: mongoose.Schema.Types.ObjectId, ref: "Partner" },
 
-      // Budget table
       budget: [
         {
           category: String,
@@ -42,7 +65,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       prepTimeline: [
         {
-          time: String,
+          time: Date, // ✅ Đổi sang Date
           task: String,
           manager: {
             name: String,
@@ -65,7 +88,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       eventTimeline: [
         {
-          time: String,
+          time: Date, // ✅ Đổi sang Date
           activity: String,
           manager: {
             name: String,
@@ -85,7 +108,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       programScript: [
         {
-          time: String,
+          time: Date, // ✅ Đổi sang Date
           content: String,
         },
       ],
@@ -98,53 +121,129 @@ const EventPlanSchema = new mongoose.Schema(
       ],
     },
 
-    // ======= STEP 4 =======
+    // ======= STEP 3.5: KẾ HOẠCH CHI PHÍ =======
+    step3_5: {
+      partnerCosts: [
+        {
+          partnerId: { type: mongoose.Schema.Types.ObjectId, ref: "Partner" },
+          partnerName: String,
+          description: String,
+          amount: Number,
+          note: String,
+        },
+      ],
+
+      deposits: [
+        {
+          description: String,
+          amount: Number,
+          dueDate: Date,
+          status: {
+            type: String,
+            enum: ["pending", "paid", "overdue"],
+            default: "pending",
+          },
+          paidAt: Date,
+          note: String,
+        },
+      ],
+
+      totalEstimatedCost: Number,
+      totalDeposit: Number,
+      totalRemaining: Number,
+    },
+
+    // ======= STEP 4: CHUẨN BỊ CHI TIẾT =======
     step4: {
       checklist: [
         {
           category: String,
           description: String,
-          owner: String,
-          deadline: String,
+          owner: {
+            name: String,
+            id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
+          },
+          deadline: Date, // ✅ Đổi sang Date với time
+          status: {
+            type: String,
+            enum: ["pending", "in_progress", "completed"],
+            default: "pending",
+          },
+          completedAt: Date,
         },
       ],
     },
 
-    // ======= STEP 5 =======
+    // ======= STEP 5: TRUYỀN THÔNG & MARKETING =======
     step5: {
       marketingChecklist: [
         {
           category: String,
           description: String,
-          owner: String,
-          deadline: String,
+          owner: {
+            name: String,
+            id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
+          },
+          deadline: Date, // ✅ Đổi sang Date với time
+          status: {
+            type: String,
+            enum: ["pending", "in_progress", "completed"],
+            default: "pending",
+          },
+          completedAt: Date,
         },
       ],
     },
 
-    // ======= STEP 6 =======
+    // ======= STEP 6: TRIỂN KHAI NGÀY SỰ KIỆN =======
     step6: {
       eventDayChecklist: [
         {
           category: String,
           description: String,
-          owner: String,
-          deadline: String,
+          owner: {
+            name: String,
+            id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
+          },
+          deadline: Date, // ✅ Đổi sang Date với time
+          status: {
+            type: String,
+            enum: ["pending", "in_progress", "completed"],
+            default: "pending",
+          },
+          completedAt: Date,
         },
       ],
     },
 
-    // ======= STEP 7 =======
+    // ======= STEP 7: HẬU SỰ KIỆN =======
     step7: {
       postEvent: [
         {
           category: String,
           description: String,
-          owner: String,
-          deadline: String,
+          owner: {
+            name: String,
+            id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
+          },
+          deadline: Date, // ✅ Đổi sang Date với time
+          status: {
+            type: String,
+            enum: ["pending", "in_progress", "completed"],
+            default: "pending",
+          },
+          completedAt: Date,
         },
       ],
     },
+
+    // ======= TRACKING TẠO TASK =======
+    tasksCreated: {
+      type: Boolean,
+      default: false,
+    },
+    tasksCreatedAt: Date,
+    tasksCreatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
   },
   { timestamps: true }
 );

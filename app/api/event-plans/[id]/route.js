@@ -13,7 +13,9 @@ export async function GET(req, { params }) {
       .populate("step2.selectedPartner")
       .populate("step2.prepTimeline.manager.id")
       .populate("step2.staffAssign.manager.id")
-      .populate("step2.eventTimeline.manager.id");
+      .populate("step2.eventTimeline.manager.id")
+      .populate("approvals.manager.approvedBy")
+      .populate("tasksCreatedBy");
 
     if (!plan) {
       return NextResponse.json(
@@ -39,7 +41,11 @@ export async function PATCH(req, { params }) {
     const { id } = params;
     const data = await req.json();
 
-    const plan = await EventPlan.findByIdAndUpdate(id, { $set: data }, { new: true });
+    const plan = await EventPlan.findByIdAndUpdate(
+      id,
+      { $set: data },
+      { new: true }
+    );
 
     if (!plan) {
       return NextResponse.json(
@@ -55,6 +61,34 @@ export async function PATCH(req, { params }) {
     });
   } catch (err) {
     console.error("❌ Lỗi PATCH EventPlan:", err);
+    return NextResponse.json(
+      { success: false, message: err.message },
+      { status: 500 }
+    );
+  }
+}
+
+// ====== [DELETE] XÓA KẾ HOẠCH ======
+export async function DELETE(req, { params }) {
+  try {
+    await connectDB();
+    const { id } = params;
+
+    const plan = await EventPlan.findByIdAndDelete(id);
+
+    if (!plan) {
+      return NextResponse.json(
+        { success: false, message: "Không tìm thấy kế hoạch để xóa" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "✅ Xóa kế hoạch thành công",
+    });
+  } catch (err) {
+    console.error("❌ Lỗi DELETE EventPlan:", err);
     return NextResponse.json(
       { success: false, message: err.message },
       { status: 500 }

@@ -64,6 +64,7 @@ const BookingSchema = new mongoose.Schema(
 
     event_date: { type: Date, required: true },
     event_time: { type: String, trim: true },
+    event_end_time: { type: String, trim: true },
 
     region: {
       province: { type: String, trim: true },

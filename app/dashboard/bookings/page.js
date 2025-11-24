@@ -31,6 +31,7 @@ export default function BookingPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [servicesList, setServicesList] = useState([]);
+  const [partners, setPartners] = useState([]);
 
   const [eventType, setEventType] = useState("");
   const [customEventType, setCustomEventType] = useState("");
@@ -66,6 +67,7 @@ export default function BookingPage() {
     scale: 1,
     event_date: "",
     event_time: "",
+    event_end_time: "",
     city: "",
     district: "",
     ward: "",
@@ -100,6 +102,12 @@ export default function BookingPage() {
       .then((data) => {
         if (data.success) setServicesList(data.data);
       });
+
+    fetch("/api/partners")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setPartners(data.data);
+      });
   }, []);
 
   const groupedBookings = bookings.reduce((acc, b) => {
@@ -130,6 +138,7 @@ export default function BookingPage() {
       scale: newBooking.scale,
       event_date: newBooking.event_date,
       event_time: newBooking.event_time,
+      event_end_time: newBooking.event_end_time,
       event_type: eventType === "Khác" ? customEventType : eventType,
       ticket_sale: hasTicketSale,
       tickets: ticketTypes,
@@ -189,6 +198,7 @@ export default function BookingPage() {
       scale: 1,
       event_date: "",
       event_time: "",
+      event_end_time: "",
       city: "",
       district: "",
       ward: "",
@@ -277,6 +287,7 @@ export default function BookingPage() {
       scale: bk.scale,
       event_date: bk.event_date?.slice(0, 10),
       event_time: bk.event_time,
+      event_end_time: bk.event_end_time || "",
       city: bk.region?.province || "",
       district: bk.region?.district || "",
       ward: bk.region?.ward || "",
@@ -373,12 +384,21 @@ export default function BookingPage() {
         ))}
         {daysArray.map((day) => {
           const dayBookings = groupedBookings[day];
+          const pendingCount = dayBookings?.filter(
+            (b) => b.booking_status === "pending"
+          ).length;
+          const hasConfirmed = dayBookings?.some(
+            (b) => b.booking_status === "confirmed"
+          );
+
           return (
             <Card
               key={day}
               className={cn(
-                "h-24 p-2 cursor-pointer flex flex-col justify-between border transition",
-                dayBookings && "bg-green-50 hover:bg-green-100"
+                "h-24 p-2 cursor-pointer flex flex-col justify-between border transition relative", // Added relative
+                !dayBookings && "hover:bg-gray-50",
+                dayBookings && !hasConfirmed && "bg-yellow-50 hover:bg-yellow-100", // Chỉ có đơn mới (chưa duyệt)
+                hasConfirmed && "bg-green-100 hover:bg-green-200" // Đã có đơn duyệt
               )}
               onClick={() => {
                 if (dayBookings) {
@@ -388,11 +408,26 @@ export default function BookingPage() {
                 }
               }}
             >
-              <div className="text-right text-xs text-muted-foreground">
-                {day}
+              <div className="flex justify-between items-start">
+                 {/* 🔴 Badge số lượng đơn mới */}
+                {pendingCount > 0 && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-sm animate-pulse">
+                    {pendingCount}
+                  </span>
+                )}
+                <div className="text-right text-xs text-muted-foreground ml-auto">
+                  {day}
+                </div>
               </div>
+              
               {dayBookings && (
-                <Badge variant="secondary" className="bg-green-600 text-white">
+                <Badge 
+                  variant="secondary" 
+                  className={cn(
+                    "text-white self-start",
+                    hasConfirmed ? "bg-green-600" : "bg-yellow-600"
+                  )}
+                >
                   {dayBookings.length} đơn
                 </Badge>
               )}
@@ -423,9 +458,7 @@ export default function BookingPage() {
                     <SelectValue placeholder="Chọn loại sự kiện" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Tiệc cưới">Tiệc cưới</SelectItem>
                     <SelectItem value="Hội nghị">Hội nghị</SelectItem>
-                    <SelectItem value="Sinh nhật">Sinh nhật</SelectItem>
                     <SelectItem value="Sự kiện công ty">
                       Sự kiện công ty
                     </SelectItem>
@@ -500,17 +533,8 @@ export default function BookingPage() {
                         })}
                       </div>
                     )}
-                    <SelectItem value="Khác">Khác...</SelectItem>
                   </SelectContent>
                 </Select>
-                {eventType === "Khác" && (
-                  <Input
-                    className="mt-2"
-                    placeholder="Nhập loại sự kiện khác..."
-                    value={customEventType}
-                    onChange={(e) => setCustomEventType(e.target.value)}
-                  />
-                )}
               </div>
 
               {/* 🟩 Thông tin khách */}
@@ -577,13 +601,25 @@ export default function BookingPage() {
                 <div>
                   <Label>Giờ bắt đầu</Label>
                   <Input
-                    type="text"
-                    placeholder="VD: 8:30 sáng / 14h00 / 08:20 AM"
+                    type="time"
                     value={newBooking.event_time}
                     onChange={(e) =>
                       setNewBooking({
                         ...newBooking,
                         event_time: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label>Giờ kết thúc</Label>
+                  <Input
+                    type="time"
+                    value={newBooking.event_end_time}
+                    onChange={(e) =>
+                      setNewBooking({
+                        ...newBooking,
+                        event_end_time: e.target.value,
                       })
                     }
                   />
@@ -604,49 +640,48 @@ export default function BookingPage() {
                 </div>
               </div>
 
-              {/* 🟩 Địa điểm */}
-              <label>Khu vực muốn tổ chức sự kiện:</label>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label>Tỉnh/Thành phố</Label>
-                  <Input
-                    value={newBooking.city}
-                    onChange={(e) =>
-                      setNewBooking({ ...newBooking, city: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Quận/Huyện</Label>
-                  <Input
-                    value={newBooking.district}
-                    onChange={(e) =>
-                      setNewBooking({ ...newBooking, district: e.target.value })
-                    }
-                  />
-                </div>
-                <div>
-                  <Label>Phường/Xã</Label>
-                  <Input
-                    value={newBooking.ward}
-                    onChange={(e) =>
-                      setNewBooking({ ...newBooking, ward: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
+              {/* 🟩 Chọn đối tác (Nhà hàng / Khách sạn) */}
               <div>
-                <Label>Nơi tổ chức củ thể(Nếu có)</Label>
-                <Input
+                <Label>Chọn Nhà hàng / Khách sạn</Label>
+                <Select
                   value={newBooking.custom_location}
-                  onChange={(e) =>
-                    setNewBooking({
-                      ...newBooking,
-                      custom_location: e.target.value,
-                    })
-                  }
-                />
+                  onValueChange={(val) => {
+                    const partner = partners.find((p) => p.company_name === val);
+                    if (partner) {
+                      setNewBooking({
+                        ...newBooking,
+                        custom_location: partner.company_name,
+                        address: partner.address, // Auto-fill address
+                        city: partner.region || "", // Assuming region stores city/province for now or we map it
+                        // If region is just a string, we might need to parse it or just store it.
+                        // The previous code had city/district/ward.
+                        // If partner.region is a string like "Hà Nội", we can put it in city.
+                      });
+                    } else {
+                       setNewBooking({
+                        ...newBooking,
+                        custom_location: val,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn địa điểm tổ chức..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {partners
+                      .filter(
+                        (p) =>
+                          p.partner_type?.toLowerCase().includes("nhà hàng") ||
+                          p.partner_type?.toLowerCase().includes("khách sạn")
+                      )
+                      .map((p) => (
+                        <SelectItem key={p._id} value={p.company_name}>
+                          {p.company_name} ({p.partner_type})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* 🟩 Dịch vụ */}
@@ -742,9 +777,23 @@ export default function BookingPage() {
 
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
             {dayBookingsList.map((bk) => (
-              <div key={bk._id} className="border p-3 rounded-lg bg-muted/40">
-                <div className="font-semibold">
-                  {bk.customer_name} — {bk.phone}
+              <div 
+                key={bk._id} 
+                className={cn(
+                  "border p-3 rounded-lg",
+                  bk.booking_status === "confirmed" ? "bg-green-50 border-green-200" : 
+                  bk.booking_status === "cancelled" ? "bg-red-50 border-red-200" :
+                  "bg-muted/40"
+                )}
+              >
+                <div className="flex justify-between">
+                  <div className="font-semibold">
+                    {bk.customer_name} — {bk.phone}
+                  </div>
+                  <Badge variant={bk.booking_status === "confirmed" ? "success" : "outline"}>
+                    {bk.booking_status === "confirmed" ? "Đã duyệt" : 
+                     bk.booking_status === "cancelled" ? "Đã hủy" : "Chờ duyệt"}
+                  </Badge>
                 </div>
 
                 <div className="text-sm text-gray-600">
@@ -843,16 +892,21 @@ export default function BookingPage() {
               <div>
                 <h3 className="font-semibold text-lg">Dịch vụ yêu cầu</h3>
                 {selectedBooking.services?.length > 0 ? (
-                  selectedBooking.services.map((svc, i) => (
-                    <div key={i} className="border p-2 rounded mt-1">
-                      <p>
-                        <b>Dịch vụ ID:</b> {svc.service_id}
-                      </p>
-                      <p>
-                        <b>Số lượng:</b> {svc.quantity}
-                      </p>
-                    </div>
-                  ))
+                  selectedBooking.services.map((svc, i) => {
+                    const serviceName =
+                      servicesList.find((s) => s._id === svc.service_id)
+                        ?.name || "Dịch vụ đã xóa";
+                    return (
+                      <div key={i} className="border p-2 rounded mt-1">
+                        <p>
+                          <b>Dịch vụ:</b> {serviceName}
+                        </p>
+                        <p>
+                          <b>Số lượng:</b> {svc.quantity}
+                        </p>
+                      </div>
+                    );
+                  })
                 ) : (
                   <p>Không có dịch vụ</p>
                 )}

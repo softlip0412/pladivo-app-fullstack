@@ -31,6 +31,9 @@ export default function LoginPage() {
 
       // ✅ Chỉ lưu user vào localStorage (token đã được lưu vào cookie)
       localStorage.setItem("user", JSON.stringify(data.user));
+      if (data.accessToken) {
+        localStorage.setItem("accessToken", data.accessToken);
+      }
 
       // ✅ Redirect và refresh để load user mới
       router.push("/dashboard");

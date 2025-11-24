@@ -42,10 +42,14 @@ export default function DashboardHome() {
   const [tasks, setTasks] = useState([]);
 
   // Pagination states
-  const [calendarPage, setCalendarPage] = useState(0);
   const [notebookPage, setNotebookPage] = useState(0);
   const [evaluationPage, setEvaluationPage] = useState(0);
   const ITEMS_PER_PAGE = 3;
+
+  // States cho lịch tuần
+  const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
+  const [selectedTaskDetail, setSelectedTaskDetail] = useState(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   // States cho nộp báo cáo
   const [selectedTask, setSelectedTask] = useState(null);
@@ -110,6 +114,11 @@ export default function DashboardHome() {
     fetchTasks();
   }, [staff]);
 
+  // Initialize week start
+  useEffect(() => {
+    setCurrentWeekStart(getStartOfWeek(new Date()));
+  }, []);
+
   const formatDate = (dateStr) => {
     if (!dateStr) return "Chưa có";
     const d = new Date(dateStr);
@@ -149,16 +158,70 @@ export default function DashboardHome() {
     }
   };
 
-  // Lọc tasks theo tháng và năm
-  const getFilteredTasks = () => {
+  // ✅ Helper functions cho lịch tuần
+  const getWeekDays = (startDate) => {
+    const days = [];
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
+  const getStartOfWeek = (date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Monday as start
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const changeWeek = (direction) => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() + direction * 7);
+    setCurrentWeekStart(newDate);
+  };
+
+  const getTimeSlot = (date) => {
+    const hour = date.getHours();
+    if (hour >= 6 && hour < 12) return "morning";
+    if (hour >= 12 && hour < 18) return "afternoon";
+    return "evening";
+  };
+
+  const getTasksForDayAndSlot = (date, slot) => {
     return tasks.filter((task) => {
       if (!task.deadline) return false;
       const taskDate = new Date(task.deadline);
-      return (
-        taskDate.getMonth() + 1 === parseInt(month) &&
-        taskDate.getFullYear() === parseInt(year)
-      );
+      
+      const isSameDay =
+        taskDate.getDate() === date.getDate() &&
+        taskDate.getMonth() === date.getMonth() &&
+        taskDate.getFullYear() === date.getFullYear();
+      
+      if (!isSameDay) return false;
+      
+      const taskSlot = getTimeSlot(taskDate);
+      return taskSlot === slot;
     });
+  };
+
+  const formatWeekRange = () => {
+    const weekDays = getWeekDays(currentWeekStart);
+    const start = weekDays[0];
+    const end = weekDays[6];
+    
+    return `${start.getDate()}/${start.getMonth() + 1} - ${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
+  };
+
+  const openTaskDetail = (task) => {
+    setSelectedTaskDetail(task);
+    setIsDetailDialogOpen(true);
   };
 
   // Lấy tasks chưa hoàn thành
@@ -302,7 +365,6 @@ export default function DashboardHome() {
     );
   }
 
-  const filteredTasks = getFilteredTasks();
   const pendingTasks = getPendingTasks();
   const completedTasks = getCompletedTasks();
 
@@ -378,105 +440,107 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
 
-        {/* Card 2: Lịch làm việc với Pagination */}
+        {/* Card 2: Lịch làm việc dạng tuần */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row justify-between items-center">
-            <CardTitle>
-              Lịch làm việc ({filteredTasks.length} công việc)
-            </CardTitle>
-            <div className="flex gap-2">
-              <Select value={month} onValueChange={setMonth}>
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder="Tháng" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={`${i + 1}`}>
-                      Tháng {i + 1}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={year} onValueChange={setYear}>
-                <SelectTrigger className="w-[100px]">
-                  <SelectValue placeholder="Năm" />
-                </SelectTrigger>
-                <SelectContent>
-                  {[2024, 2025, 2026].map((y) => (
-                    <SelectItem key={y} value={`${y}`}>
-                      {y}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <CardTitle>Lịch làm việc tuần</CardTitle>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changeWeek(-1)}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium min-w-[140px] text-center">
+                {formatWeekRange()}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changeWeek(1)}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
           </CardHeader>
-          <CardContent>
-            {filteredTasks.length > 0 ? (
-              <>
-                <div className="space-y-3">
-                  {paginate(filteredTasks, calendarPage).map((task) => (
-                    <div
-                      key={task._id}
-                      className="border rounded-lg p-3 hover:bg-gray-50 transition"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-sm">
-                            {task.category}
-                          </h4>
-                          <p className="text-xs text-gray-600 mt-1">
-                            {task.description || "Không có mô tả"}
-                          </p>
-                        </div>
-                        {getStatusBadge(task.status)}
-                      </div>
+          <CardContent className="overflow-x-auto">
+            <div className="min-w-[800px]">
+              {/* Header - Days of week */}
+              <div className="grid grid-cols-8 gap-1 mb-2">
+                <div className="text-xs font-semibold p-2"></div>
+                {getWeekDays(currentWeekStart).map((day, idx) => {
+                  const isToday =
+                    day.getDate() === new Date().getDate() &&
+                    day.getMonth() === new Date().getMonth() &&
+                    day.getFullYear() === new Date().getFullYear();
 
-                      <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>
-                          📅 Deadline:{" "}
-                          <strong>{formatDate(task.deadline)}</strong>
-                        </span>
+                  return (
+                    <div
+                      key={idx}
+                      className={`text-center p-2 rounded-lg ${
+                        isToday ? "bg-blue-100 font-bold" : "bg-gray-50"
+                      }`}
+                    >
+                      <div className="text-xs font-semibold">
+                        {["T2", "T3", "T4", "T5", "T6", "T7", "CN"][idx]}
+                      </div>
+                      <div className="text-sm">
+                        {day.getDate()}/{day.getMonth() + 1}
                       </div>
                     </div>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {getTotalPages(filteredTasks) > 1 && (
-                  <div className="flex justify-center items-center gap-2 mt-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCalendarPage(calendarPage - 1)}
-                      disabled={calendarPage === 0}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </Button>
-                    <span className="text-sm">
-                      Trang {calendarPage + 1} / {getTotalPages(filteredTasks)}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCalendarPage(calendarPage + 1)}
-                      disabled={
-                        calendarPage >= getTotalPages(filteredTasks) - 1
-                      }
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                <p>
-                  Không có công việc nào trong tháng {month}/{year}
-                </p>
+                  );
+                })}
               </div>
-            )}
+
+              {/* Time slots */}
+              {[
+                { label: "🌅 Sáng", slot: "morning" },
+                { label: "☀️ Chiều", slot: "afternoon" },
+                { label: "🌙 Tối", slot: "evening" },
+              ].map((timeSlot) => (
+                <div key={timeSlot.slot} className="grid grid-cols-8 gap-1 mb-1">
+                  <div className="text-xs font-semibold p-2 flex items-center justify-center bg-gray-50 rounded-lg">
+                    {timeSlot.label}
+                  </div>
+
+                  {getWeekDays(currentWeekStart).map((day, idx) => {
+                    const tasksInSlot = getTasksForDayAndSlot(day, timeSlot.slot);
+
+                    return (
+                      <div
+                        key={idx}
+                        className="min-h-[80px] border rounded-lg p-1 bg-white hover:bg-gray-50 transition"
+                      >
+                        {tasksInSlot.length > 0 ? (
+                          <div className="space-y-1">
+                            {tasksInSlot.map((task) => (
+                              <div
+                                key={task._id}
+                                onClick={() => openTaskDetail(task)}
+                                className="text-xs p-1.5 rounded cursor-pointer hover:shadow-sm transition bg-blue-50 border border-blue-200"
+                              >
+                                <div className="font-semibold line-clamp-1 text-blue-900">
+                                  {task.category}
+                                </div>
+                                <div className="text-[10px] text-blue-700">
+                                  {new Date(task.deadline).getHours()}:
+                                  {String(new Date(task.deadline).getMinutes()).padStart(2, "0")}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-gray-300">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
@@ -559,7 +623,7 @@ export default function DashboardHome() {
           </CardContent>
         </Card>
 
-        {/* Card 4: Đánh giá công việc - ✅ MỚI CẬP NHẬT */}
+        {/* Card 4: Đánh giá công việc */}
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>
@@ -653,36 +717,129 @@ export default function DashboardHome() {
             )}
           </CardContent>
         </Card>
-
-        {/* Card 5: Nghỉ phép */}
-        {/* <Card>
-          <CardHeader>
-            <CardTitle>Nghỉ phép</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>
-              Ngày phép còn lại: <strong>5 ngày</strong>
-            </p>
-            <Button variant="outline" className="mt-2 w-full">
-              Xin nghỉ phép
-            </Button>
-          </CardContent>
-        </Card> */}
-
-        {/* Card 6: Thông báo */}
-        {/* <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Tin nhắn thông báo</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2 text-sm">
-              <li>📢 Cuộc họp nội bộ lúc 14h hôm nay</li>
-              <li>🎉 Sự kiện "Pladivo Connect 2025" sắp diễn ra</li>
-              <li>🕐 Cập nhật chính sách nghỉ phép mới</li>
-            </ul>
-          </CardContent>
-        </Card> */}
       </div>
+
+      {/* Dialog Xem Chi Tiết Công Việc */}
+      <Dialog open={isDetailDialogOpen} onOpenChange={setIsDetailDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chi tiết công việc</DialogTitle>
+          </DialogHeader>
+
+          {selectedTaskDetail && (
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-semibold text-gray-700">
+                  Tên công việc
+                </label>
+                <p className="text-base mt-1">{selectedTaskDetail.category}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-semibold text-gray-700">
+                  Mô tả
+                </label>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedTaskDetail.description || "Không có mô tả"}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Deadline
+                  </label>
+                  <p className="text-sm mt-1">
+                    📅 {formatDate(selectedTaskDetail.deadline)}
+                    <br />
+                    🕐{" "}
+                    {new Date(selectedTaskDetail.deadline).getHours()}:
+                    {String(
+                      new Date(selectedTaskDetail.deadline).getMinutes()
+                    ).padStart(2, "0")}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Trạng thái
+                  </label>
+                  <div className="mt-1">{getStatusBadge(selectedTaskDetail.status)}</div>
+                </div>
+              </div>
+
+              {selectedTaskDetail.report && (
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Báo cáo đã nộp
+                  </label>
+                  <div className="bg-gray-50 p-3 rounded-lg mt-1">
+                    <p className="text-sm text-gray-600 mb-2">
+                      {selectedTaskDetail.report.content}
+                    </p>
+                    {selectedTaskDetail.report.images?.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2 mt-2">
+                        {selectedTaskDetail.report.images.map((img, idx) => (
+                          <Image
+                            key={idx}
+                            src={img.url}
+                            alt={`Report ${idx + 1}`}
+                            width={100}
+                            height={100}
+                            className="rounded object-cover"
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {selectedTaskDetail.evaluation?.rating && (
+                <div>
+                  <label className="text-sm font-semibold text-gray-700">
+                    Đánh giá
+                  </label>
+                  <div className="bg-yellow-50 p-3 rounded-lg mt-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      {renderStars(selectedTaskDetail.evaluation.rating)}
+                      <span className="text-sm font-semibold">
+                        {selectedTaskDetail.evaluation.rating}/5
+                      </span>
+                    </div>
+                    {selectedTaskDetail.evaluation.comment && (
+                      <p className="text-sm text-gray-600">
+                        {selectedTaskDetail.evaluation.comment}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailDialogOpen(false)}
+                >
+                  Đóng
+                </Button>
+                {(selectedTaskDetail.status === "pending" ||
+                  selectedTaskDetail.status === "in_progress") && (
+                  <Button
+                    onClick={() => {
+                      setIsDetailDialogOpen(false);
+                      openReportDialog(selectedTaskDetail);
+                    }}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Nộp báo cáo
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Nộp Báo Cáo */}
       <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>

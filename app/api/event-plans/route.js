@@ -16,7 +16,7 @@ export async function POST(req) {
     await connectDB();
     const body = await req.json();
 
-    if (!body.status) body.status = "pending";
+    if (!body.status) body.status = "draft";
 
     const eventPlan = await EventPlan.create(body);
 
