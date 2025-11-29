@@ -31,6 +31,7 @@ import {
   TicketCheck,
   ChartBar,
   LogOut,
+  StickyNote,
 } from "lucide-react";
 
 export default function DashboardLayout({ children }) {
@@ -85,6 +86,15 @@ export default function DashboardLayout({ children }) {
                     <Link href="/dashboard">
                       <Home className="mr-2" />
                       <span>Trang chủ</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <Link href="/dashboard/blogs">
+                      <StickyNote className="mr-2" />
+                      <span>Blogs</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

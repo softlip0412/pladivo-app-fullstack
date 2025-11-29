@@ -18,6 +18,7 @@ export async function PATCH(req, { params }) {
       "in_progress",
       "completed",
       "cancelled",
+      "confirmed",
     ];
 
     if (!validStatuses.includes(status)) {
