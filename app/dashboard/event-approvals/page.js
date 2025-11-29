@@ -12,6 +12,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 
 export default function EventApprovalPage() {
   const [plans, setPlans] = useState([]);
@@ -54,17 +55,19 @@ export default function EventApprovalPage() {
       });
       const json = await res.json();
       if (json.success) {
-        alert(
-          status === "confirmed"
+        toast.success(
+          status === "manager_approved_demo"
             ? "✅ Kế hoạch đã được phê duyệt!"
             : "🚫 Kế hoạch đã bị từ chối!"
         );
         setOpen(false);
         fetchPlans();
-      } else alert("❌ " + json.message);
+      } else {
+        toast.error("❌ " + json.message);
+      }
     } catch (err) {
       console.error(err);
-      alert("Lỗi khi cập nhật trạng thái.");
+      toast.error("❌ Lỗi khi cập nhật trạng thái.");
     }
   }
 
@@ -260,7 +263,7 @@ export default function EventApprovalPage() {
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleApproval("confirmed")}
+                  onClick={() => handleApproval("manager_approved_demo")}
                 >
                   ✅ Chấp nhận kế hoạch
                 </Button>

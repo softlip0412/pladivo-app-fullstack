@@ -25,6 +25,14 @@ const BookingSchema = new mongoose.Schema(
       },
     ],
 
+    allow_auditing: { type: Boolean, default: false },
+    auditing_areas: [
+      {
+        area_type: { type: String, required: true },
+        quantity: { type: Number, default: 0 },
+      },
+    ],
+
     customer_name: { type: String, required: true, trim: true },
     address: { type: String, required: true, trim: true },
     phone: { type: String, required: true, trim: true },
@@ -66,13 +74,11 @@ const BookingSchema = new mongoose.Schema(
     event_time: { type: String, trim: true },
     event_end_time: { type: String, trim: true },
 
-    region: {
-      province: { type: String, trim: true },
-      district: { type: String, trim: true },
-      ward: { type: String, trim: true },
+    partner_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Partner",
+      required: false,
     },
-
-    custom_location: { type: String, trim: true },
 
     booked_at: { type: Date, default: Date.now },
   },

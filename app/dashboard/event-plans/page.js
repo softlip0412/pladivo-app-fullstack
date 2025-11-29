@@ -28,6 +28,7 @@ import { Check, CheckCircle, Clock, XCircle, Sparkles } from "lucide-react";
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import eventTemplates from "../data/event-templates";
 
 export default function EventPlansPage() {
   const [plans, setPlans] = useState([]);
@@ -38,6 +39,7 @@ export default function EventPlansPage() {
 
   const [step, setStep] = useState(1);
   const [open, setOpen] = useState(false);
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [bookingInfo, setBookingInfo] = useState(null);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -81,6 +83,7 @@ export default function EventPlansPage() {
   const [eventTimeline, setEventTimeline] = useState([
     { time: "", activity: "", manager: "" },
   ]);
+  const [ticketPricing, setTicketPricing] = useState([]);
 
   // Step 3
   const [theme, setTheme] = useState("");
@@ -135,10 +138,22 @@ export default function EventPlansPage() {
   };
 
   const fetchStaff = async () => {
-    const res = await fetch("/api/staff");
-    const json = await res.json();
-    if (Array.isArray(json.staff)) setStaff(json.staff);
-    else setStaff([]);
+    try {
+      const res = await fetch("/api/staff");
+      const json = await res.json();
+      console.log("Staff API response:", json);
+      
+      if (json.success && Array.isArray(json.data)) {
+        setStaff(json.data);
+        console.log("Staff loaded:", json.data.length, "members");
+      } else {
+        console.warn("Staff data not in expected format:", json);
+        setStaff([]);
+      }
+    } catch (err) {
+      console.error("Fetch staff error:", err);
+      setStaff([]);
+    }
   };
 
   const fetchPartners = async () => {
@@ -290,6 +305,7 @@ export default function EventPlansPage() {
       setPrepTimeline(editingPlan.step2?.prepTimeline || []);
       setStaffAssign(editingPlan.step2?.staffAssign || []);
       setEventTimeline(editingPlan.step2?.eventTimeline || []);
+      setTicketPricing(editingPlan.step2?.ticketPricing || []);
       setTheme(editingPlan.step3?.theme || "");
       setMainColor(editingPlan.step3?.mainColor || "");
       setStyle(editingPlan.step3?.style || "");
@@ -307,6 +323,22 @@ export default function EventPlansPage() {
       resetForm();
     }
   }, [editingPlan]);
+
+  // Initialize ticket pricing from bookingInfo
+  useEffect(() => {
+    if (bookingInfo?.ticket_sale && bookingInfo?.tickets?.length > 0) {
+      // Only initialize if ticketPricing is empty (new plan)
+      if (ticketPricing.length === 0 && !editingPlan) {
+        const initialPricing = bookingInfo.tickets.map((ticket) => ({
+          type: ticket.type,
+          quantity: ticket.quantity,
+          price: 0,
+          totalRevenue: 0,
+        }));
+        setTicketPricing(initialPricing);
+      }
+    }
+  }, [bookingInfo, editingPlan]);
 
   // ============ UTILS ============
   const formatDate = (dateStr) => {
@@ -326,6 +358,7 @@ export default function EventPlansPage() {
     setPrepTimeline([]);
     setStaffAssign([]);
     setEventTimeline([]);
+    setTicketPricing([]);
     setTheme("");
     setMainColor("");
     setStyle("");
@@ -369,6 +402,11 @@ export default function EventPlansPage() {
   // ============ HANDLE SAVE ============
   const handleSaveStep123 = async () => {
     try {
+      const totalTicketRevenue = ticketPricing.reduce(
+        (sum, t) => sum + (t.totalRevenue || 0),
+        0
+      );
+
       const payload = {
         booking_id: selectedBookingId,
         status: "draft",
@@ -381,6 +419,8 @@ export default function EventPlansPage() {
           prepTimeline,
           staffAssign,
           eventTimeline,
+          ticketPricing,
+          totalTicketRevenue,
         },
         step3: {
           theme,
@@ -422,18 +462,54 @@ export default function EventPlansPage() {
   };
 
   const handleSubmitForManagerApproval = async () => {
-    const planData = await handleSaveStep123();
-    if (!planData) return;
-
     try {
-      const res = await fetch(`/api/event-plans/${planData._id}/submit-for-approval`, {
-        method: "POST",
+      const totalTicketRevenue = ticketPricing.reduce(
+        (sum, t) => sum + (t.totalRevenue || 0),
+        0
+      );
+
+      const payload = {
+        booking_id: selectedBookingId,
+        status: "pending_manager_demo",
+        step1: { goal, audience, eventCategory },
+        step2: {
+          startDate,
+          endDate,
+          selectedPartner,
+          budget: budgetRows,
+          prepTimeline,
+          staffAssign,
+          eventTimeline,
+          ticketPricing,
+          totalTicketRevenue,
+        },
+        step3: {
+          theme,
+          mainColor,
+          style,
+          message,
+          decoration,
+          programScript,
+          keyActivities,
+        },
+      };
+
+      const checkRes = await fetch(
+        `/api/event-plans?booking_id=${selectedBookingId}`
+      );
+      const checkJson = await checkRes.json();
+      const method = checkJson?.data ? "PATCH" : "POST";
+
+      const res = await fetch("/api/event-plans", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
 
       const json = await res.json();
 
       if (json.success) {
-        toast.success("✅ Đã gửi yêu cầu phê duyệt cho quản lý!");
+        toast.success("✅ Đã lưu và gửi kế hoạch demo thành công!");
         setOpen(false);
         fetchBookings();
       } else {
@@ -447,8 +523,18 @@ export default function EventPlansPage() {
 
   const handleCompletePlan = async () => {
     try {
-      const totalCost = partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0);
-      const totalDeposit = deposits.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const totalCost = partnerCosts.reduce(
+        (sum, p) => sum + (p.amount || 0),
+        0
+      );
+      const totalDeposit = deposits.reduce(
+        (sum, d) => sum + (d.amount || 0),
+        0
+      );
+      const totalTicketRevenue = ticketPricing.reduce(
+        (sum, t) => sum + (t.totalRevenue || 0),
+        0
+      );
 
       const payload = {
         booking_id: selectedBookingId,
@@ -461,6 +547,8 @@ export default function EventPlansPage() {
           prepTimeline,
           staffAssign,
           eventTimeline,
+          ticketPricing,
+          totalTicketRevenue,
         },
         step3: {
           theme,
@@ -605,23 +693,113 @@ export default function EventPlansPage() {
     });
   };
 
+  const updateTicketPricing = (index, field, value) => {
+    setTicketPricing((prev) => {
+      const updated = [...prev];
+      updated[index][field] = value;
+      
+      // Auto-calculate totalRevenue when price or quantity changes
+      if (field === 'price' || field === 'quantity') {
+        const price = field === 'price' ? value : updated[index].price;
+        const quantity = field === 'quantity' ? value : updated[index].quantity;
+        updated[index].totalRevenue = (price || 0) * (quantity || 0);
+      }
+      
+      return updated;
+    });
+  };
+
+  // ============ LOAD TEMPLATE ============
+  const loadTemplate = (eventType) => {
+    const template = eventTemplates[eventType];
+    if (!template) {
+      toast.error("❌ Không tìm thấy mẫu cho loại sự kiện này!");
+      return;
+    }
+
+    // Load Step 1
+    setGoal(template.step1.goal);
+    setAudience(template.step1.audience);
+    setEventCategory(template.step1.eventCategory);
+
+    // Load Step 2
+    setStartDate(template.step2.startDate || "");
+    setEndDate(template.step2.endDate || "");
+    setBudgetRows(template.step2.budget || []);
+    setPrepTimeline(template.step2.prepTimeline || []);
+    setStaffAssign(template.step2.staffAssign || []);
+    setEventTimeline(template.step2.eventTimeline || []);
+    setTicketPricing(template.step2.ticketPricing || []);
+
+    // Load Step 3
+    setTheme(template.step3.theme);
+    setMainColor(template.step3.mainColor);
+    setStyle(template.step3.style);
+    setMessage(template.step3.message);
+    setDecoration(template.step3.decoration);
+    setProgramScript(template.step3.programScript || []);
+    setKeyActivities(template.step3.keyActivities || []);
+
+    // Load Step 3.5
+    setPartnerCosts(template.step3_5.partnerCosts || []);
+    setDeposits(template.step3_5.deposits || []);
+
+    // Load Step 4-7
+    setPrepChecklist(template.step4.checklist || []);
+    setMarketingChecklist(template.step5.marketingChecklist || []);
+    setEventDayChecklist(template.step6.eventDayChecklist || []);
+    setPostEventRows(template.step7.postEvent || []);
+
+    toast.success("✅ Đã tải dữ liệu mẫu thành công!");
+  };
+
   // ============ STATUS BADGE ============
   const getStatusBadge = (status) => {
     const statusConfig = {
-      draft: { label: "Đang soạn thảo", class: "bg-gray-100 text-gray-700", icon: Clock },
-      pending_manager: { label: "Chờ quản lý duyệt", class: "bg-yellow-100 text-yellow-700", icon: Clock },
-      manager_approved: { label: "Quản lý đã duyệt", class: "bg-blue-100 text-blue-700", icon: CheckCircle },
-      pending_customer: { label: "Chờ khách hàng", class: "bg-purple-100 text-purple-700", icon: Clock },
-      customer_approved: { label: "Khách hàng đã duyệt", class: "bg-green-100 text-green-700", icon: CheckCircle },
-      completed: { label: "Hoàn thành", class: "bg-green-100 text-green-700", icon: CheckCircle },
-      cancelled: { label: "Đã hủy", class: "bg-red-100 text-red-700", icon: XCircle },
+      draft: {
+        label: "Đang soạn thảo",
+        class: "bg-gray-100 text-gray-700",
+        icon: Clock,
+      },
+      pending_manager: {
+        label: "Chờ quản lý duyệt",
+        class: "bg-yellow-100 text-yellow-700",
+        icon: Clock,
+      },
+      manager_approved: {
+        label: "Quản lý đã duyệt",
+        class: "bg-blue-100 text-blue-700",
+        icon: CheckCircle,
+      },
+      pending_customer: {
+        label: "Chờ khách hàng",
+        class: "bg-purple-100 text-purple-700",
+        icon: Clock,
+      },
+      customer_approved: {
+        label: "Khách hàng đã duyệt",
+        class: "bg-green-100 text-green-700",
+        icon: CheckCircle,
+      },
+      completed: {
+        label: "Hoàn thành",
+        class: "bg-green-100 text-green-700",
+        icon: CheckCircle,
+      },
+      cancelled: {
+        label: "Đã hủy",
+        class: "bg-red-100 text-red-700",
+        icon: XCircle,
+      },
     };
 
     const config = statusConfig[status] || statusConfig.draft;
     const Icon = config.icon;
 
     return (
-      <span className={`px-3 py-1 rounded inline-flex items-center gap-1 ${config.class}`}>
+      <span
+        className={`px-3 py-1 rounded inline-flex items-center gap-1 ${config.class}`}
+      >
         <Icon className="w-3 h-3" />
         {config.label}
       </span>
@@ -631,6 +809,61 @@ export default function EventPlansPage() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">📅 Quản lý Kế hoạch</h1>
+
+      {/* TEMPLATE CONFIRMATION DIALOG */}
+      <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-600" />
+              Sử dụng dữ liệu mẫu?
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-gray-600">
+              Bạn có muốn điền dữ liệu mẫu để tham khảo không? Dữ liệu mẫu sẽ giúp bạn hiểu rõ hơn về cách lập kế hoạch sự kiện.
+            </p>
+            
+            {bookingInfo && (
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                <p className="text-sm font-semibold text-blue-900 mb-1">
+                  Loại sự kiện: {bookingInfo.event_type}
+                </p>
+                <p className="text-xs text-blue-700">
+                  Dữ liệu mẫu sẽ được điền tự động cho loại sự kiện này
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => {
+                setShowTemplateDialog(false);
+                setOpen(true);
+              }}
+            >
+              Không, tôi tự điền
+            </Button>
+            <Button
+              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              onClick={() => {
+                if (bookingInfo?.event_type) {
+                  loadTemplate(bookingInfo.event_type);
+                }
+                setShowTemplateDialog(false);
+                setOpen(true);
+              }}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Có, dùng mẫu
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -642,12 +875,9 @@ export default function EventPlansPage() {
                 : "📋 Lên kế hoạch sự kiện"}
             </DialogTitle>
           </DialogHeader>
-
           <div className="flex justify-between items-center mb-4">
-            <p className="font-medium">Bước {step}/8</p>
             {editingPlan && getStatusBadge(editingPlan.status)}
           </div>
-
           {/* STEP 1 */}
           {step === 1 && (
             <div className="space-y-4">
@@ -657,11 +887,33 @@ export default function EventPlansPage() {
 
               {bookingInfo && (
                 <Card className="p-4 bg-muted">
-                  <p><strong>Loại sự kiện:</strong> {bookingInfo.event_type}</p>
-                  <p><strong>Khách hàng:</strong> {bookingInfo.customer_name}</p>
-                  <p><strong>Địa chỉ:</strong> {bookingInfo.address}</p>
-                  <p><strong>Điện thoại:</strong> {bookingInfo.phone}</p>
-                  <p><strong>Email:</strong> {bookingInfo.email}</p>
+                  <h3 className="font-semibold mb-2">
+                    📋 Thông tin khách hàng
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="space-y-2">
+                      <p>
+                        <b>👤 Khách hàng:</b> {bookingInfo.customer_name}
+                      </p>
+                      <p>
+                        <b>📞 Điện thoại:</b> {bookingInfo.phone}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <p>
+                        <b>📧 Email:</b> {bookingInfo.email}
+                      </p>
+                      <p>
+                        <b>📍 Địa chỉ:</b> {bookingInfo.address}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="border-t mt-3 pt-3">
+                    <p>
+                      <b>🎭 Loại sự kiện:</b> {bookingInfo.event_type}
+                    </p>
+                  </div>
                 </Card>
               )}
 
@@ -693,25 +945,160 @@ export default function EventPlansPage() {
               </div>
             </div>
           )}
-
           {/* STEP 2 */}
           {step === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold">2. Lập kế hoạch tổng thể (Master Plan)</h2>
+              <h2 className="text-xl font-semibold">
+                2. Lập kế hoạch tổng thể (Master Plan)
+              </h2>
 
               {bookingInfo && (
                 <Card className="p-4 bg-muted">
-                  <h3 className="font-semibold mb-2">Thông tin booking</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <p><b>Ngày:</b> {formatDate(bookingInfo.event_date)}</p>
-                    <p><b>Giờ:</b> {bookingInfo.event_time || "—"}</p>
-                    <p>
-                      <b>Khu vực:</b> {bookingInfo.region?.province}, {bookingInfo.region?.district}, {bookingInfo.region?.ward}
-                    </p>
-                    {bookingInfo.custom_location && (
-                      <p><b>Địa điểm:</b> {bookingInfo.custom_location}</p>
+                  <h3 className="font-semibold mb-3 text-lg">
+                    📋 Thông tin booking
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    {/* Thông tin sự kiện */}
+                    <div className="space-y-2">
+                      <p>
+                        <b>🎭 Loại sự kiện:</b> {bookingInfo.event_type}
+                      </p>
+                      <p>
+                        <b>📅 Ngày tổ chức:</b>{" "}
+                        {formatDate(bookingInfo.event_date)}
+                      </p>
+                      <p>
+                        <b>🕐 Giờ bắt đầu:</b> {bookingInfo.event_time || "—"}
+                      </p>
+                      <p>
+                        <b>🕐 Giờ kết thúc:</b>{" "}
+                        {bookingInfo.event_end_time || "—"}
+                      </p>
+                      <p>
+                        <b>👥 Quy mô:</b> {bookingInfo.scale} khách
+                      </p>
+                    </div>
+
+                    {/* Bán vé */}
+                    {bookingInfo.ticket_sale && (
+                      <div className="col-span-full border-t pt-3 mt-2">
+                        <p className="font-semibold mb-2">
+                          🎫 Thông tin bán vé:
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {bookingInfo.tickets?.map((ticket, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white p-2 rounded border"
+                            >
+                              <p className="text-xs text-gray-600">
+                                {ticket.type}
+                              </p>
+                              <p className="font-bold">{ticket.quantity} vé</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     )}
-                    <p><b>Quy mô:</b> {bookingInfo.scale} khách</p>
+
+                    {/* Kiểm toán */}
+                    {bookingInfo.allow_auditing && (
+                      <div className="col-span-full border-t pt-3 mt-2">
+                        <p className="font-semibold mb-2">
+                          🔍 Vị trí Thính giả:
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {bookingInfo.auditing_areas?.map((area, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white p-2 rounded border"
+                            >
+                              <p className="text-xs text-gray-600">
+                                {area.area_type}
+                              </p>
+                              <p className="font-bold">
+                                {area.quantity} Vị trí
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Trạng thái */}
+                    <div className="col-span-full border-t pt-3 mt-2">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <p className="text-xs text-gray-600">
+                            Trạng thái booking:
+                          </p>
+                          <span
+                            className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                              bookingInfo.booking_status === "confirmed"
+                                ? "bg-green-100 text-green-700"
+                                : bookingInfo.booking_status === "pending"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : bookingInfo.booking_status === "cancelled"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}
+                          >
+                            {bookingInfo.booking_status}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-xs text-gray-600">Thanh toán:</p>
+                          <span
+                            className={`inline-block px-2 py-1 rounded text-xs font-semibold ${
+                              bookingInfo.payment_status === "paid"
+                                ? "bg-green-100 text-green-700"
+                                : bookingInfo.payment_status === "pending"
+                                ? "bg-yellow-100 text-yellow-700"
+                                : bookingInfo.payment_status === "failed"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-100 text-gray-700"
+                            }`}
+                          >
+                            {bookingInfo.payment_status}
+                          </span>
+                        </div>
+
+                        {bookingInfo.payment_method && (
+                          <div>
+                            <p className="text-xs text-gray-600">
+                              Phương thức:
+                            </p>
+                            <p className="font-medium">
+                              {bookingInfo.payment_method === "cash"
+                                ? "💵 Tiền mặt"
+                                : bookingInfo.payment_method === "bank_transfer"
+                                ? "🏦 Chuyển khoản"
+                                : bookingInfo.payment_method === "credit_card"
+                                ? "💳 Thẻ tín dụng"
+                                : "🌐 Online"}
+                            </p>
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-xs text-gray-600">Ngày đặt:</p>
+                          <p className="font-medium">
+                            {formatDate(bookingInfo.booked_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Ghi chú */}
+                    {bookingInfo.notes && (
+                      <div className="col-span-full border-t pt-3 mt-2">
+                        <p className="text-xs text-gray-600 mb-1">
+                          📝 Ghi chú:
+                        </p>
+                        <p className="text-sm italic">{bookingInfo.notes}</p>
+                      </div>
+                    )}
                   </div>
                 </Card>
               )}
@@ -739,7 +1126,10 @@ export default function EventPlansPage() {
               {/* Chọn Partner */}
               <div>
                 <Label>Địa điểm đối tác (Nhà hàng / Khách sạn)</Label>
-                <Select value={selectedPartner} onValueChange={setSelectedPartner}>
+                <Select
+                  value={selectedPartner}
+                  onValueChange={setSelectedPartner}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn đối tác" />
                   </SelectTrigger>
@@ -752,7 +1142,119 @@ export default function EventPlansPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {bookingInfo?.event_type === "Sự kiện đại chúng" && (
+                <Card className="p-4 bg-blue-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    🎫 Quản lý bán vé
+                  </h3>
 
+                  {bookingInfo.ticket_sale &&
+                  bookingInfo.tickets?.length > 0 ? (
+                    <div className="space-y-4">
+                      <p className="text-sm text-gray-600 mb-2">
+                        Nhập giá vé cho từng loại:
+                      </p>
+                      
+                      <div className="space-y-3">
+                        {ticketPricing.map((ticket, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white p-4 rounded-lg border border-blue-200 space-y-3"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-gray-600">Loại vé</p>
+                                <p className="font-bold text-lg">{ticket.type}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm text-gray-600">Số lượng</p>
+                                <p className="font-semibold text-blue-600">
+                                  {ticket.quantity} vé
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <Label>Giá vé (VNĐ)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  placeholder="Nhập giá vé"
+                                  value={ticket.price || ""}
+                                  onChange={(e) =>
+                                    updateTicketPricing(idx, "price", +e.target.value)
+                                  }
+                                />
+                              </div>
+                              
+                              <div>
+                                <Label>Doanh thu dự kiến</Label>
+                                <div className="h-10 px-3 py-2 bg-gray-100 rounded-md flex items-center">
+                                  <span className="font-semibold text-green-600">
+                                    {(ticket.totalRevenue || 0).toLocaleString()} VNĐ
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {ticketPricing.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-blue-200">
+                          <div className="flex justify-between items-center bg-blue-100 p-3 rounded-lg">
+                            <span className="font-semibold text-blue-900">
+                              Tổng doanh thu dự kiến:
+                            </span>
+                            <span className="font-bold text-xl text-green-600">
+                              {ticketPricing
+                                .reduce((sum, t) => sum + (t.totalRevenue || 0), 0)
+                                .toLocaleString()}{" "}
+                              VNĐ
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-sm text-gray-500">
+                        ⚠️ Chưa có thông tin bán vé
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Vui lòng cập nhật thông tin bán vé trong booking
+                      </p>
+                    </div>
+                  )}
+
+                  {bookingInfo.allow_auditing &&
+                    bookingInfo.auditing_areas?.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-blue-200">
+                        <p className="text-sm text-gray-600 mb-2">
+                          🔍 Khu vực kiểm toán:
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {bookingInfo.auditing_areas.map((area, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white p-3 rounded border border-blue-200"
+                            >
+                              <p className="text-sm text-gray-600">Khu vực</p>
+                              <p className="font-bold">{area.area_type}</p>
+                              <p className="text-sm mt-1">
+                                <span className="text-gray-600">Số lượng:</span>{" "}
+                                <span className="font-semibold">
+                                  {area.quantity}
+                                </span>
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                </Card>
+              )}
               {/* Dịch vụ khách đã chọn */}
               <Card className="p-4">
                 <h3 className="font-semibold mb-2">Dịch vụ khách đã chọn</h3>
@@ -770,7 +1272,8 @@ export default function EventPlansPage() {
                       <tr key={i}>
                         <td className="border p-1">{s.name}</td>
                         <td className="border p-1">
-                          {s.minPrice.toLocaleString()} — {s.maxPrice.toLocaleString()}
+                          {s.minPrice.toLocaleString()} —{" "}
+                          {s.maxPrice.toLocaleString()}
                         </td>
                         <td className="border p-1">{s.unit}</td>
                         <td className="border p-1">{s.quantity}</td>
@@ -803,39 +1306,51 @@ export default function EventPlansPage() {
                         <td className="border p-1">
                           <Input
                             value={row.category}
-                            onChange={(e) => updateBudget(i, "category", e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "category", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.description}
-                            onChange={(e) => updateBudget(i, "description", e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "description", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.unit}
-                            onChange={(e) => updateBudget(i, "unit", e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "unit", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             type="number"
                             value={row.quantity}
-                            onChange={(e) => updateBudget(i, "quantity", +e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "quantity", +e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             type="number"
                             value={row.cost}
-                            onChange={(e) => updateBudget(i, "cost", +e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "cost", +e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.note}
-                            onChange={(e) => updateBudget(i, "note", e.target.value)}
+                            onChange={(e) =>
+                              updateBudget(i, "note", e.target.value)
+                            }
                           />
                         </td>
                       </tr>
@@ -847,7 +1362,14 @@ export default function EventPlansPage() {
                   onClick={() =>
                     setBudgetRows([
                       ...budgetRows,
-                      { category: "", description: "", unit: "", quantity: 1, cost: 0, note: "" },
+                      {
+                        category: "",
+                        description: "",
+                        unit: "",
+                        quantity: 1,
+                        cost: 0,
+                        note: "",
+                      },
                     ])
                   }
                 >
@@ -855,7 +1377,10 @@ export default function EventPlansPage() {
                 </Button>
                 <div className="text-right font-bold mt-3">
                   Tổng cộng:{" "}
-                  {budgetRows.reduce((sum, r) => sum + r.cost * r.quantity, 0).toLocaleString()} ₫
+                  {budgetRows
+                    .reduce((sum, r) => sum + r.cost * r.quantity, 0)
+                    .toLocaleString()}{" "}
+                  ₫
                 </div>
               </div>
 
@@ -877,22 +1402,31 @@ export default function EventPlansPage() {
                           <Input
                             type="datetime-local"
                             value={row.time}
-                            onChange={(e) => updatePrep(i, "time", e.target.value)}
+                            onChange={(e) =>
+                              updatePrep(i, "time", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.task}
-                            onChange={(e) => updatePrep(i, "task", e.target.value)}
+                            onChange={(e) =>
+                              updatePrep(i, "task", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           {customPrepOwner[i] ? (
                             <Input
                               value={row.manager}
-                              onChange={(e) => updatePrep(i, "manager", e.target.value)}
+                              onChange={(e) =>
+                                updatePrep(i, "manager", e.target.value)
+                              }
                               onBlur={() =>
-                                setCustomPrepOwner((prev) => ({ ...prev, [i]: false }))
+                                setCustomPrepOwner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
                               }
                             />
                           ) : (
@@ -900,7 +1434,10 @@ export default function EventPlansPage() {
                               value={row.manager}
                               onChange={(v) => {
                                 if (v === "__custom__") {
-                                  setCustomPrepOwner((prev) => ({ ...prev, [i]: true }));
+                                  setCustomPrepOwner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
                                   updatePrep(i, "manager", "");
                                 } else {
                                   updatePrep(i, "manager", v);
@@ -916,7 +1453,10 @@ export default function EventPlansPage() {
                 <Button
                   className="mt-2"
                   onClick={() =>
-                    setPrepTimeline([...prepTimeline, { time: "", task: "", manager: "" }])
+                    setPrepTimeline([
+                      ...prepTimeline,
+                      { time: "", task: "", manager: "" },
+                    ])
                   }
                 >
                   + Thêm dòng
@@ -941,22 +1481,31 @@ export default function EventPlansPage() {
                         <td className="border p-1">
                           <Input
                             value={row.department}
-                            onChange={(e) => updateStaff(i, "department", e.target.value)}
+                            onChange={(e) =>
+                              updateStaff(i, "department", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.duty}
-                            onChange={(e) => updateStaff(i, "duty", e.target.value)}
+                            onChange={(e) =>
+                              updateStaff(i, "duty", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           {customStaffAssignOwner[i] ? (
                             <Input
                               value={row.manager}
-                              onChange={(e) => updateStaff(i, "manager", e.target.value)}
+                              onChange={(e) =>
+                                updateStaff(i, "manager", e.target.value)
+                              }
                               onBlur={() =>
-                                setCustomStaffAssignOwner((prev) => ({ ...prev, [i]: false }))
+                                setCustomStaffAssignOwner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
                               }
                             />
                           ) : (
@@ -964,7 +1513,10 @@ export default function EventPlansPage() {
                               value={row.manager}
                               onChange={(v) => {
                                 if (v === "__custom__") {
-                                  setCustomStaffAssignOwner((prev) => ({ ...prev, [i]: true }));
+                                  setCustomStaffAssignOwner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
                                   updateStaff(i, "manager", "");
                                 } else {
                                   updateStaff(i, "manager", v);
@@ -976,7 +1528,9 @@ export default function EventPlansPage() {
                         <td className="border p-1">
                           <Input
                             value={row.note}
-                            onChange={(e) => updateStaff(i, "note", e.target.value)}
+                            onChange={(e) =>
+                              updateStaff(i, "note", e.target.value)
+                            }
                           />
                         </td>
                       </tr>
@@ -1014,22 +1568,31 @@ export default function EventPlansPage() {
                           <Input
                             type="datetime-local"
                             value={row.time}
-                            onChange={(e) => updateEvent(i, "time", e.target.value)}
+                            onChange={(e) =>
+                              updateEvent(i, "time", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.activity}
-                            onChange={(e) => updateEvent(i, "activity", e.target.value)}
+                            onChange={(e) =>
+                              updateEvent(i, "activity", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           {customEventTimelineOwner[i] ? (
                             <Input
                               value={row.manager}
-                              onChange={(e) => updateEvent(i, "manager", e.target.value)}
+                              onChange={(e) =>
+                                updateEvent(i, "manager", e.target.value)
+                              }
                               onBlur={() =>
-                                setCustomEventTimelineOwner((prev) => ({ ...prev, [i]: false }))
+                                setCustomEventTimelineOwner((prev) => ({
+                                  ...prev,
+                                  [i]: false,
+                                }))
                               }
                             />
                           ) : (
@@ -1037,7 +1600,10 @@ export default function EventPlansPage() {
                               value={row.manager}
                               onChange={(v) => {
                                 if (v === "__custom__") {
-                                  setCustomEventTimelineOwner((prev) => ({ ...prev, [i]: true }));
+                                  setCustomEventTimelineOwner((prev) => ({
+                                    ...prev,
+                                    [i]: true,
+                                  }));
                                   updateEvent(i, "manager", "");
                                 } else {
                                   updateEvent(i, "manager", v);
@@ -1053,7 +1619,10 @@ export default function EventPlansPage() {
                 <Button
                   className="mt-2"
                   onClick={() =>
-                    setEventTimeline([...eventTimeline, { time: "", activity: "", manager: "" }])
+                    setEventTimeline([
+                      ...eventTimeline,
+                      { time: "", activity: "", manager: "" },
+                    ])
                   }
                 >
                   + Thêm dòng
@@ -1061,11 +1630,12 @@ export default function EventPlansPage() {
               </div>
             </div>
           )}
-
           {/* STEP 3 */}
           {step === 3 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold">3. Xây dựng ý tưởng & Concept</h2>
+              <h2 className="text-xl font-semibold">
+                3. Xây dựng ý tưởng & Concept
+              </h2>
 
               {/* Input chủ đề */}
               <Card className="p-4 space-y-3">
@@ -1132,13 +1702,17 @@ export default function EventPlansPage() {
                           <Input
                             type="datetime-local"
                             value={row.time}
-                            onChange={(e) => updateProgram(i, "time", e.target.value)}
+                            onChange={(e) =>
+                              updateProgram(i, "time", e.target.value)
+                            }
                           />
                         </td>
                         <td className="border p-1">
                           <Input
                             value={row.content}
-                            onChange={(e) => updateProgram(i, "content", e.target.value)}
+                            onChange={(e) =>
+                              updateProgram(i, "content", e.target.value)
+                            }
                             placeholder="VD: Khai mạc, Phát biểu chào mừng..."
                           />
                         </td>
@@ -1149,7 +1723,10 @@ export default function EventPlansPage() {
                 <Button
                   className="mt-2"
                   onClick={() =>
-                    setProgramScript([...programScript, { time: "", content: "" }])
+                    setProgramScript([
+                      ...programScript,
+                      { time: "", content: "" },
+                    ])
                   }
                 >
                   + Thêm dòng
@@ -1181,14 +1758,18 @@ export default function EventPlansPage() {
                         <td className="border p-1">
                           <Select
                             value={row.importance}
-                            onValueChange={(v) => updateKeyActivities(i, "importance", v)}
+                            onValueChange={(v) =>
+                              updateKeyActivities(i, "importance", v)
+                            }
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="Chọn mức độ" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="Cao">⭐⭐⭐ Cao</SelectItem>
-                              <SelectItem value="Trung bình">⭐⭐ Trung bình</SelectItem>
+                              <SelectItem value="Trung bình">
+                                ⭐⭐ Trung bình
+                              </SelectItem>
                               <SelectItem value="Thấp">⭐ Thấp</SelectItem>
                             </SelectContent>
                           </Select>
@@ -1200,7 +1781,10 @@ export default function EventPlansPage() {
                 <Button
                   className="mt-2"
                   onClick={() =>
-                    setKeyActivities([...keyActivities, { activity: "", importance: "" }])
+                    setKeyActivities([
+                      ...keyActivities,
+                      { activity: "", importance: "" },
+                    ])
                   }
                 >
                   + Thêm hoạt động
@@ -1208,15 +1792,16 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
-          {/* STEP 4 (mới) - KẾ HOẠCH CHI PHÍ */}
+          {/* STEP 4 - KẾ HOẠCH CHI PHÍ */}
           {step === 4 && (
             <div className="space-y-6">
               <h2 className="text-xl font-semibold">4. Kế hoạch chi phí</h2>
 
               {/* Chi phí đối tác */}
               <Card className="p-4">
-                <h3 className="font-semibold mb-2">Chi phí yêu cầu từ đối tác</h3>
+                <h3 className="font-semibold mb-2">
+                  Chi phí yêu cầu từ đối tác
+                </h3>
                 <table className="w-full border text-sm">
                   <thead className="bg-gray-100">
                     <tr>
@@ -1234,8 +1819,14 @@ export default function EventPlansPage() {
                             value={row.partnerId}
                             onValueChange={(v) => {
                               updatePartnerCost(i, "partnerId", v);
-                              const partner = partnerOptions.find(p => p._id === v);
-                              updatePartnerCost(i, "partnerName", partner?.company_name || "");
+                              const partner = partnerOptions.find(
+                                (p) => p._id === v
+                              );
+                              updatePartnerCost(
+                                i,
+                                "partnerName",
+                                partner?.company_name || ""
+                              );
                             }}
                           >
                             <SelectTrigger>
@@ -1254,7 +1845,11 @@ export default function EventPlansPage() {
                           <Input
                             value={row.description}
                             onChange={(e) =>
-                              updatePartnerCost(i, "description", e.target.value)
+                              updatePartnerCost(
+                                i,
+                                "description",
+                                e.target.value
+                              )
                             }
                           />
                         </td>
@@ -1284,7 +1879,13 @@ export default function EventPlansPage() {
                   onClick={() =>
                     setPartnerCosts([
                       ...partnerCosts,
-                      { partnerId: "", partnerName: "", description: "", amount: 0, note: "" },
+                      {
+                        partnerId: "",
+                        partnerName: "",
+                        description: "",
+                        amount: 0,
+                        note: "",
+                      },
                     ])
                   }
                 >
@@ -1350,7 +1951,13 @@ export default function EventPlansPage() {
                   onClick={() =>
                     setDeposits([
                       ...deposits,
-                      { description: "", amount: 0, dueDate: "", status: "pending", note: "" },
+                      {
+                        description: "",
+                        amount: 0,
+                        dueDate: "",
+                        status: "pending",
+                        note: "",
+                      },
                     ])
                   }
                 >
@@ -1364,17 +1971,25 @@ export default function EventPlansPage() {
                 <div className="space-y-1">
                   <p>
                     <strong>Tổng chi phí đối tác:</strong>{" "}
-                    {partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0).toLocaleString()} ₫
+                    {partnerCosts
+                      .reduce((sum, p) => sum + (p.amount || 0), 0)
+                      .toLocaleString()}{" "}
+                    ₫
                   </p>
                   <p>
                     <strong>Tổng đặt cọc:</strong>{" "}
-                    {deposits.reduce((sum, d) => sum + (d.amount || 0), 0).toLocaleString()} ₫
+                    {deposits
+                      .reduce((sum, d) => sum + (d.amount || 0), 0)
+                      .toLocaleString()}{" "}
+                    ₫
                   </p>
                   <p className="text-lg font-bold text-blue-700">
                     <strong>Còn lại:</strong>{" "}
                     {(
-                      partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0) -
-                      deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
+                      partnerCosts.reduce(
+                        (sum, p) => sum + (p.amount || 0),
+                        0
+                      ) - deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
                     ).toLocaleString()}{" "}
                     ₫
                   </p>
@@ -1382,11 +1997,12 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
           {/* STEP 5 - CHUẨN BỊ CHI TIẾT */}
           {step === 5 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold">5. Chuẩn bị chi tiết (Pre-event)</h2>
+              <h2 className="text-xl font-semibold">
+                5. Chuẩn bị chi tiết (Pre-event)
+              </h2>
 
               <Card className="p-4">
                 <h3 className="font-semibold mb-2">Checklist chuẩn bị</h3>
@@ -1488,11 +2104,12 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
           {/* STEP 6 - TRUYỀN THÔNG & MARKETING */}
           {step === 6 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold">6. Truyền thông & Marketing</h2>
+              <h2 className="text-xl font-semibold">
+                6. Truyền thông & Marketing
+              </h2>
 
               <Card className="p-4">
                 <h3 className="font-semibold mb-2">Checklist Marketing</h3>
@@ -1609,7 +2226,6 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
           {/* STEP 7 - TRIỂN KHAI NGÀY SỰ KIỆN */}
           {step === 7 && (
             <div className="space-y-6">
@@ -1732,11 +2348,12 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
           {/* STEP 8 - HẬU SỰ KIỆN */}
           {step === 8 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold">8. Hậu sự kiện (Post-event)</h2>
+              <h2 className="text-xl font-semibold">
+                8. Hậu sự kiện (Post-event)
+              </h2>
 
               <Card className="p-4">
                 <h3 className="font-semibold mb-2">Checklist sau sự kiện</h3>
@@ -1837,7 +2454,6 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
-
           {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between mt-6">
             <Button disabled={step === 1} onClick={() => setStep(step - 1)}>
@@ -1849,7 +2465,10 @@ export default function EventPlansPage() {
                 <Button variant="outline" onClick={handleSaveStep123}>
                   💾 Lưu nháp
                 </Button>
-                <Button className="bg-blue-600" onClick={handleSubmitForManagerApproval}>
+                <Button
+                  className="bg-blue-600"
+                  onClick={handleSubmitForManagerApproval}
+                >
                   📤 Gửi phê duyệt
                 </Button>
               </div>
@@ -1889,7 +2508,9 @@ export default function EventPlansPage() {
             <SelectItem value="all">Tất cả loại sự kiện</SelectItem>
             <SelectItem value="Hội nghị">🏢 Hội nghị</SelectItem>
             <SelectItem value="Sự kiện công ty">🏙️ Sự kiện công ty</SelectItem>
-            <SelectItem value="Sự kiện đại chúng">🎤 Sự kiện đại chúng</SelectItem>
+            <SelectItem value="Sự kiện đại chúng">
+              🎤 Sự kiện đại chúng
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -1916,14 +2537,18 @@ export default function EventPlansPage() {
                   <CardTitle>{b.customer_name}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <p><b>Ngày tổ chức:</b> {formatDate(b.event_date)}</p>
-                  <p><b>Loại sự kiện:</b> {b.event_type}</p>
-                  <p><b>Địa điểm:</b> {b.address}</p>
+                  <p>
+                    <b>Ngày tổ chức:</b> {formatDate(b.event_date)}
+                  </p>
+                  <p>
+                    <b>Loại sự kiện:</b> {b.event_type}
+                  </p>
+                  <p>
+                    <b>Địa điểm:</b> {b.address}
+                  </p>
 
                   {plan ? (
-                    <div className="mt-3">
-                      {getStatusBadge(status)}
-                    </div>
+                    <div className="mt-3">{getStatusBadge(status)}</div>
                   ) : (
                     <div className="mt-3">
                       <span className="px-3 py-1 rounded inline-flex items-center gap-1 bg-rose-100 text-rose-700 border border-rose-200 font-medium">
@@ -1942,7 +2567,8 @@ export default function EventPlansPage() {
                           setSelectedBookingId(b._id);
                           await fetchBookingDetail(b._id);
                           setStep(1);
-                          setOpen(true);
+                          // Show template dialog for new plans
+                          setShowTemplateDialog(true);
                         }}
                       >
                         📋 Lên kế hoạch sự kiện
@@ -1961,16 +2587,19 @@ export default function EventPlansPage() {
                             setEditingPlan(json.data);
                             setSelectedBookingId(b._id);
                             await fetchBookingDetail(b._id);
-                            
+
                             // Điều hướng đến bước phù hợp
-                            if (status === "draft" || status === "pending_manager") {
+                            if (
+                              status === "draft" ||
+                              status === "pending_manager"
+                            ) {
                               setStep(1);
                             } else if (status === "customer_approved") {
                               setStep(4);
                             } else {
                               setStep(1);
                             }
-                            
+
                             setOpen(true);
                           } else {
                             toast.error("❌ Không thể tải kế hoạch!");

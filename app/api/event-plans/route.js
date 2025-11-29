@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/api/common/db";
 import EventPlan from "@/models/EventPlan";
 import Task from "@/models/Task";
-import mongoose from "mongoose"; // ✅ Thêm import này
+import mongoose from "mongoose";
 
 // ✅ Helper function để kiểm tra ObjectId hợp lệ
 function isValidObjectId(id) {
@@ -15,6 +15,9 @@ export async function POST(req) {
   try {
     await connectDB();
     const body = await req.json();
+
+    // DEBUG: Check allowed enum values
+    console.log("Allowed status values:", EventPlan.schema.path('status').enumValues);
 
     if (!body.status) body.status = "draft";
 
