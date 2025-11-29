@@ -12,14 +12,18 @@ const EventPlanSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: [
-        "draft", // Đang soạn thảo (Step 1-3) - Default status
-        "pending_manager", // Chờ quản lý duyệt
-        "manager_approved", // Quản lý đã duyệt
-        "pending_customer", // Chờ khách hàng duyệt
-        "customer_approved", // Khách hàng đã duyệt, tiếp tục Step 4-7
-        "in_progress", // Đang thực hiện
-        "completed", // Hoàn thành
-        "cancelled", // Đã hủy
+        "draft",
+        "pending_manager", 
+        "pending_manager_demo", 
+        "manager_approved", 
+        "manager_approved_demo", 
+        "pending_customer",
+        "pending_customer_demo",
+        "customer_approved",
+        "customer_approved_demo",
+        "in_progress", 
+        "completed", 
+        "cancelled", 
       ],
       default: "draft",
     },
@@ -48,8 +52,8 @@ const EventPlanSchema = new mongoose.Schema(
 
     // ======= STEP 2 =======
     step2: {
-      startDate: Date, // ✅ Đổi sang Date
-      endDate: Date, // ✅ Đổi sang Date
+      startDate: Date, 
+      endDate: Date, 
       selectedPartner: { type: mongoose.Schema.Types.ObjectId, ref: "Partner" },
 
       budget: [
@@ -65,7 +69,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       prepTimeline: [
         {
-          time: Date, // ✅ Đổi sang Date
+          time: Date, 
           task: String,
           manager: {
             name: String,
@@ -88,7 +92,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       eventTimeline: [
         {
-          time: Date, // ✅ Đổi sang Date
+          time: Date,
           activity: String,
           manager: {
             name: String,
@@ -108,7 +112,7 @@ const EventPlanSchema = new mongoose.Schema(
 
       programScript: [
         {
-          time: Date, // ✅ Đổi sang Date
+          time: Date,
           content: String,
         },
       ],
@@ -163,7 +167,7 @@ const EventPlanSchema = new mongoose.Schema(
             name: String,
             id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
           },
-          deadline: Date, // ✅ Đổi sang Date với time
+          deadline: Date,
           status: {
             type: String,
             enum: ["pending", "in_progress", "completed"],
@@ -184,7 +188,7 @@ const EventPlanSchema = new mongoose.Schema(
             name: String,
             id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
           },
-          deadline: Date, // ✅ Đổi sang Date với time
+          deadline: Date,
           status: {
             type: String,
             enum: ["pending", "in_progress", "completed"],
@@ -205,7 +209,7 @@ const EventPlanSchema = new mongoose.Schema(
             name: String,
             id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
           },
-          deadline: Date, // ✅ Đổi sang Date với time
+          deadline: Date,
           status: {
             type: String,
             enum: ["pending", "in_progress", "completed"],
@@ -226,7 +230,7 @@ const EventPlanSchema = new mongoose.Schema(
             name: String,
             id: { type: mongoose.Schema.Types.ObjectId, ref: "Staff" },
           },
-          deadline: Date, // ✅ Đổi sang Date với time
+          deadline: Date,
           status: {
             type: String,
             enum: ["pending", "in_progress", "completed"],
@@ -248,5 +252,6 @@ const EventPlanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Export with consistent name
 export default mongoose.models.EventPlan ||
   mongoose.model("EventPlan", EventPlanSchema);

@@ -8,16 +8,19 @@ export async function PATCH(req, { params }) {
     const { id } = params;
     const { status } = await req.json();
 
-    // ✅ Kiểm tra hợp lệ với trạng thái mới
     const validStatuses = [
-      "draft",
-      "pending_manager",
-      "manager_approved",
-      "pending_customer",
-      "customer_approved",
-      "in_progress",
-      "completed",
-      "cancelled",
+       "draft",
+        "pending_manager", 
+        "pending_manager_demo", 
+        "manager_approved", 
+        "manager_approved_demo", 
+        "pending_customer",
+        "pending_customer_demo",
+        "customer_approved",
+        "customer_approved_demo",
+        "in_progress", 
+        "completed", 
+        "cancelled", 
     ];
 
     if (!validStatuses.includes(status)) {
