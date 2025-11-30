@@ -241,6 +241,24 @@ const EventPlanSchema = new mongoose.Schema(
       ],
     },
 
+    // ======= STEP 9: KẾ HOẠCH BÁN VÉ =======
+    step9: {
+      saleStartDate: Date,
+      saleEndDate: Date,
+      refundPolicy: String,
+      limitPerPerson: Number,
+      
+      ticketPricing: [
+        {
+          type: String,
+          quantity: Number,
+          earlyBirdPrice: Number,
+          regularPrice: Number,
+          latePrice: Number,
+        },
+      ],
+    },
+
     // ======= TRACKING TẠO TASK =======
     tasksCreated: {
       type: Boolean,

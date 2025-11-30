@@ -10,6 +10,34 @@ function isValidObjectId(id) {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
+// ✅ Helper function để xử lý owner field (có thể là string hoặc object)
+function processOwner(owner) {
+  if (!owner) {
+    return { staff_id: null, custom_owner: null };
+  }
+  
+  // Nếu owner là object với id và name
+  if (typeof owner === "object" && owner.id) {
+    const ownerId = owner.id;
+    if (isValidObjectId(ownerId)) {
+      return { staff_id: ownerId, custom_owner: null };
+    } else {
+      return { staff_id: null, custom_owner: owner.name || ownerId };
+    }
+  }
+  
+  // Nếu owner là string
+  if (typeof owner === "string") {
+    if (isValidObjectId(owner)) {
+      return { staff_id: owner, custom_owner: null };
+    } else {
+      return { staff_id: null, custom_owner: owner };
+    }
+  }
+  
+  return { staff_id: null, custom_owner: null };
+}
+
 // ====== [POST] TẠO MỚI KẾ HOẠCH ======
 export async function POST(req) {
   try {
@@ -28,60 +56,72 @@ export async function POST(req) {
     // Step 4: Chuẩn bị chi tiết
     if (body.step4?.checklist?.length > 0) {
       allTasks.push(
-        ...body.step4.checklist.map((item) => ({
-          booking_id: body.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...body.step4.checklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: body.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 5: Marketing
     if (body.step5?.marketingChecklist?.length > 0) {
       allTasks.push(
-        ...body.step5.marketingChecklist.map((item) => ({
-          booking_id: body.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...body.step5.marketingChecklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: body.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 6: Event Day
     if (body.step6?.eventDayChecklist?.length > 0) {
       allTasks.push(
-        ...body.step6.eventDayChecklist.map((item) => ({
-          booking_id: body.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...body.step6.eventDayChecklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: body.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 7: Post-event
     if (body.step7?.postEvent?.length > 0) {
       allTasks.push(
-        ...body.step7.postEvent.map((item) => ({
-          booking_id: body.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...body.step7.postEvent.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: body.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
@@ -142,60 +182,72 @@ export async function PATCH(req) {
     // Step 4
     if (data.step4?.checklist?.length > 0) {
       allTasks.push(
-        ...data.step4.checklist.map((item) => ({
-          booking_id: data.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...data.step4.checklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: data.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 5
     if (data.step5?.marketingChecklist?.length > 0) {
       allTasks.push(
-        ...data.step5.marketingChecklist.map((item) => ({
-          booking_id: data.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...data.step5.marketingChecklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: data.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 6
     if (data.step6?.eventDayChecklist?.length > 0) {
       allTasks.push(
-        ...data.step6.eventDayChecklist.map((item) => ({
-          booking_id: data.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...data.step6.eventDayChecklist.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: data.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 
     // Step 7
     if (data.step7?.postEvent?.length > 0) {
       allTasks.push(
-        ...data.step7.postEvent.map((item) => ({
-          booking_id: data.booking_id,
-          staff_id: isValidObjectId(item.owner) ? item.owner : null,
-          custom_owner: !isValidObjectId(item.owner) && item.owner ? item.owner : null,
-          category: item.category,
-          description: item.description,
-          deadline: item.deadline,
-          status: "pending",
-        }))
+        ...data.step7.postEvent.map((item) => {
+          const { staff_id, custom_owner } = processOwner(item.owner);
+          return {
+            booking_id: data.booking_id,
+            staff_id,
+            custom_owner,
+            category: item.category,
+            description: item.description,
+            deadline: item.deadline,
+            status: "pending",
+          };
+        })
       );
     }
 

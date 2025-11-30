@@ -126,6 +126,13 @@ export default function EventPlansPage() {
     { category: "", description: "", owner: "", deadline: "" },
   ]);
 
+  // Step 9 - Kế hoạch bán vé
+  const [ticketSaleStart, setTicketSaleStart] = useState("");
+  const [ticketSaleEnd, setTicketSaleEnd] = useState("");
+  const [refundPolicy, setRefundPolicy] = useState("");
+  const [ticketLimitPerPerson, setTicketLimitPerPerson] = useState(0);
+  const [ticketSalePricing, setTicketSalePricing] = useState([]);
+
   // ============ FETCH DATA ============
   const fetchCurrentUser = async () => {
     try {
@@ -225,18 +232,24 @@ export default function EventPlansPage() {
     }
   };
 
-  const fetchPartnersForStep2 = async () => {
+  const fetchPartnerOptions = async () => {
     try {
       const res = await fetch("/api/partners");
       const json = await res.json();
 
       if (json.data) {
-        const filtered = json.data.filter(
-          (p) =>
-            p.partner_type?.toLowerCase().includes("nhà hàng") ||
-            p.partner_type?.toLowerCase().includes("khách sạn")
-        );
-
+        let filtered = json.data;
+        
+        // Step 2: Filter for Restaurant/Hotel
+        if (step === 2) {
+          filtered = json.data.filter(
+            (p) =>
+              p.partner_type?.toLowerCase().includes("nhà hàng") ||
+              p.partner_type?.toLowerCase().includes("khách sạn")
+          );
+        }
+        // Step 4: Show all partners (no filter needed)
+        
         setPartnerOptions(filtered);
       }
     } catch (err) {
@@ -266,8 +279,8 @@ export default function EventPlansPage() {
   }, []);
 
   useEffect(() => {
-    if (step === 2) {
-      fetchPartnersForStep2();
+    if (step === 2 || step === 4) {
+      fetchPartnerOptions();
     }
   }, [step]);
 
@@ -293,36 +306,146 @@ export default function EventPlansPage() {
     }
   }, [bookingsList]);
 
+  // ============ HELPERS FOR DATA TRANSFORMATION ============
+  const formatDateTimeForInput = (isoString) => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const formatDateForInput = (isoString) => {
+    if (!isoString) return "";
+    const d = new Date(isoString);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const getManagerValue = (managerObj) => {
+    if (!managerObj) return "";
+    // If it's already a string (legacy data or error), return it
+    if (typeof managerObj === "string") return managerObj;
+    // Return ID if exists (linked to staff), otherwise return name (custom)
+    return managerObj.id || managerObj.name || "";
+  };
+
+  const formatManagerData = (value) => {
+    if (!value) return { name: "", id: null };
+    
+    // Check if it's a valid staff ID
+    const staffMember = staff.find(s => s._id === value);
+    if (staffMember) {
+      return { name: staffMember.full_name, id: staffMember._id };
+    }
+    
+    // Otherwise it's a custom name
+    return { name: value, id: null };
+  };
+
   useEffect(() => {
     if (editingPlan) {
       setGoal(editingPlan.step1?.goal || "");
       setAudience(editingPlan.step1?.audience || "");
       setEventCategory(editingPlan.step1?.eventCategory || "");
-      setStartDate(editingPlan.step2?.startDate || "");
-      setEndDate(editingPlan.step2?.endDate || "");
+      
+      // Date inputs
+      setStartDate(formatDateForInput(editingPlan.step2?.startDate));
+      setEndDate(formatDateForInput(editingPlan.step2?.endDate));
+      
       setSelectedPartner(editingPlan.step2?.selectedPartner || "");
       setBudgetRows(editingPlan.step2?.budget || []);
-      setPrepTimeline(editingPlan.step2?.prepTimeline || []);
-      setStaffAssign(editingPlan.step2?.staffAssign || []);
-      setEventTimeline(editingPlan.step2?.eventTimeline || []);
+      
+      // Transform manager objects to strings for state AND format dates
+      setPrepTimeline(
+        editingPlan.step2?.prepTimeline?.map(item => ({
+          ...item,
+          time: formatDateTimeForInput(item.time),
+          manager: getManagerValue(item.manager)
+        })) || []
+      );
+      setStaffAssign(
+        editingPlan.step2?.staffAssign?.map(item => ({
+          ...item,
+          manager: getManagerValue(item.manager)
+        })) || []
+      );
+      setEventTimeline(
+        editingPlan.step2?.eventTimeline?.map(item => ({
+          ...item,
+          time: formatDateTimeForInput(item.time),
+          manager: getManagerValue(item.manager)
+        })) || []
+      );
+      
       setTicketPricing(editingPlan.step2?.ticketPricing || []);
       setTheme(editingPlan.step3?.theme || "");
       setMainColor(editingPlan.step3?.mainColor || "");
       setStyle(editingPlan.step3?.style || "");
       setMessage(editingPlan.step3?.message || "");
       setDecoration(editingPlan.step3?.decoration || "");
-      setProgramScript(editingPlan.step3?.programScript || []);
+      
+      setProgramScript(
+        editingPlan.step3?.programScript?.map(item => ({
+          ...item,
+          time: formatDateTimeForInput(item.time)
+        })) || []
+      );
+      
       setKeyActivities(editingPlan.step3?.keyActivities || []);
       setPartnerCosts(editingPlan.step3_5?.partnerCosts || []);
-      setDeposits(editingPlan.step3_5?.deposits || []);
-      setPrepChecklist(editingPlan.step4?.checklist || []);
-      setMarketingChecklist(editingPlan.step5?.marketingChecklist || []);
-      setEventDayChecklist(editingPlan.step6?.eventDayChecklist || []);
-      setPostEventRows(editingPlan.step7?.postEvent || []);
+      
+      setDeposits(
+        editingPlan.step3_5?.deposits?.map(item => ({
+          ...item,
+          dueDate: formatDateForInput(item.dueDate)
+        })) || []
+      );
+      
+      // Transform owner objects to strings for state AND format deadlines
+      setPrepChecklist(
+        editingPlan.step4?.checklist?.map(item => ({
+          ...item,
+          deadline: formatDateTimeForInput(item.deadline),
+          owner: getManagerValue(item.owner)
+        })) || []
+      );
+      setMarketingChecklist(
+        editingPlan.step5?.marketingChecklist?.map(item => ({
+          ...item,
+          deadline: formatDateTimeForInput(item.deadline),
+          owner: getManagerValue(item.owner)
+        })) || []
+      );
+      setEventDayChecklist(
+        editingPlan.step6?.eventDayChecklist?.map(item => ({
+          ...item,
+          deadline: formatDateTimeForInput(item.deadline),
+          owner: getManagerValue(item.owner)
+        })) || []
+      );
+      setPostEventRows(
+        editingPlan.step7?.postEvent?.map(item => ({
+          ...item,
+          deadline: formatDateTimeForInput(item.deadline),
+          owner: getManagerValue(item.owner)
+        })) || []
+      );
+      
+      setTicketSaleStart(formatDateTimeForInput(editingPlan.step9?.saleStartDate));
+      setTicketSaleEnd(formatDateTimeForInput(editingPlan.step9?.saleEndDate));
+      setRefundPolicy(editingPlan.step9?.refundPolicy || "");
+      setTicketLimitPerPerson(editingPlan.step9?.limitPerPerson || 0);
+      setTicketSalePricing(editingPlan.step9?.ticketPricing || []);
     } else {
       resetForm();
     }
-  }, [editingPlan]);
+  }, [editingPlan, staff]); // Added staff dependency to ensure getManagerValue works if needed, though mostly it uses ID/name directly
 
   // Initialize ticket pricing from bookingInfo
   useEffect(() => {
@@ -336,6 +459,18 @@ export default function EventPlansPage() {
           totalRevenue: 0,
         }));
         setTicketPricing(initialPricing);
+      }
+      // Initialize ticketSalePricing for step 9
+      if (ticketSalePricing.length === 0 && !editingPlan) {
+        const initialSalePricing = bookingInfo.tickets.map((ticket) => ({
+          type: ticket.type,
+          quantity: ticket.quantity,
+          price: 0,
+          earlyBirdPrice: 0,
+          regularPrice: 0,
+          latePrice: 0,
+        }));
+        setTicketSalePricing(initialSalePricing);
       }
     }
   }, [bookingInfo, editingPlan]);
@@ -372,6 +507,11 @@ export default function EventPlansPage() {
     setMarketingChecklist([]);
     setEventDayChecklist([]);
     setPostEventRows([]);
+    setTicketSaleStart("");
+    setTicketSaleEnd("");
+    setRefundPolicy("");
+    setTicketLimitPerPerson(0);
+    setTicketSalePricing([]);
   };
 
   const StaffSelect = ({ value, onChange, placeholder = "Chọn nhân sự" }) => {
@@ -416,9 +556,18 @@ export default function EventPlansPage() {
           endDate,
           selectedPartner,
           budget: budgetRows,
-          prepTimeline,
-          staffAssign,
-          eventTimeline,
+          prepTimeline: prepTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          staffAssign: staffAssign.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          eventTimeline: eventTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
           ticketPricing,
           totalTicketRevenue,
         },
@@ -477,9 +626,18 @@ export default function EventPlansPage() {
           endDate,
           selectedPartner,
           budget: budgetRows,
-          prepTimeline,
-          staffAssign,
-          eventTimeline,
+          prepTimeline: prepTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          staffAssign: staffAssign.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          eventTimeline: eventTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
           ticketPricing,
           totalTicketRevenue,
         },
@@ -538,15 +696,25 @@ export default function EventPlansPage() {
 
       const payload = {
         booking_id: selectedBookingId,
+        status: "pending_manager", // ✅ Tự động chuyển sang chờ quản lý duyệt
         step1: { goal, audience, eventCategory },
         step2: {
           startDate,
           endDate,
           selectedPartner,
           budget: budgetRows,
-          prepTimeline,
-          staffAssign,
-          eventTimeline,
+          prepTimeline: prepTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          staffAssign: staffAssign.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
+          eventTimeline: eventTimeline.map(item => ({
+            ...item,
+            manager: formatManagerData(item.manager)
+          })),
           ticketPricing,
           totalTicketRevenue,
         },
@@ -566,11 +734,42 @@ export default function EventPlansPage() {
           totalDeposit,
           totalRemaining: totalCost - totalDeposit,
         },
-        step4: { checklist: prepChecklist },
-        step5: { marketingChecklist },
-        step6: { eventDayChecklist },
-        step7: { postEvent: postEventRows },
+        step4: { 
+          checklist: prepChecklist.map(item => ({
+            ...item,
+            owner: formatManagerData(item.owner)
+          }))
+        },
+        step5: { 
+          marketingChecklist: marketingChecklist.map(item => ({
+            ...item,
+            owner: formatManagerData(item.owner)
+          }))
+        },
+        step6: { 
+          eventDayChecklist: eventDayChecklist.map(item => ({
+            ...item,
+            owner: formatManagerData(item.owner)
+          }))
+        },
+        step7: { 
+          postEvent: postEventRows.map(item => ({
+            ...item,
+            owner: formatManagerData(item.owner)
+          }))
+        },
       };
+
+      // Chỉ thêm step9 nếu là Sự kiện đại chúng
+      if (bookingInfo?.event_type === "Sự kiện đại chúng") {
+        payload.step9 = {
+          saleStartDate: ticketSaleStart,
+          saleEndDate: ticketSaleEnd,
+          refundPolicy,
+          limitPerPerson: ticketLimitPerPerson,
+          ticketPricing: ticketSalePricing,
+        };
+      }
 
       const checkRes = await fetch(
         `/api/event-plans?booking_id=${selectedBookingId}`
@@ -587,8 +786,9 @@ export default function EventPlansPage() {
       const json = await res.json();
 
       if (json.success) {
-        toast.success(`✅ Hoàn tất kế hoạch thành công!`);
+        toast.success(`✅ Hoàn tất kế hoạch và gửi phê duyệt thành công!`);
         setOpen(false);
+        fetchBookings(); // Refresh the list
       } else {
         toast.error("❌ Lỗi: " + json.message);
       }
@@ -709,8 +909,16 @@ export default function EventPlansPage() {
     });
   };
 
+  const updateTicketSalePricing = (index, field, value) => {
+    setTicketSalePricing((prev) => {
+      const updated = [...prev];
+      updated[index][field] = value;
+      return updated;
+    });
+  };
+
   // ============ LOAD TEMPLATE ============
-  const loadTemplate = (eventType) => {
+  const loadTemplate = (eventType, startUiStep = 1) => {
     const template = eventTemplates[eventType];
     if (!template) {
       toast.error("❌ Không tìm thấy mẫu cho loại sự kiện này!");
@@ -718,37 +926,59 @@ export default function EventPlansPage() {
     }
 
     // Load Step 1
-    setGoal(template.step1.goal);
-    setAudience(template.step1.audience);
-    setEventCategory(template.step1.eventCategory);
+    if (startUiStep <= 1) {
+      setGoal(template.step1.goal);
+      setAudience(template.step1.audience);
+      setEventCategory(template.step1.eventCategory);
+    }
 
     // Load Step 2
-    setStartDate(template.step2.startDate || "");
-    setEndDate(template.step2.endDate || "");
-    setBudgetRows(template.step2.budget || []);
-    setPrepTimeline(template.step2.prepTimeline || []);
-    setStaffAssign(template.step2.staffAssign || []);
-    setEventTimeline(template.step2.eventTimeline || []);
-    setTicketPricing(template.step2.ticketPricing || []);
+    if (startUiStep <= 2) {
+      setStartDate(template.step2.startDate || "");
+      setEndDate(template.step2.endDate || "");
+      setBudgetRows(template.step2.budget || []);
+      setPrepTimeline(template.step2.prepTimeline || []);
+      setStaffAssign(template.step2.staffAssign || []);
+      setEventTimeline(template.step2.eventTimeline || []);
+      setTicketPricing(template.step2.ticketPricing || []);
+    }
 
     // Load Step 3
-    setTheme(template.step3.theme);
-    setMainColor(template.step3.mainColor);
-    setStyle(template.step3.style);
-    setMessage(template.step3.message);
-    setDecoration(template.step3.decoration);
-    setProgramScript(template.step3.programScript || []);
-    setKeyActivities(template.step3.keyActivities || []);
+    if (startUiStep <= 3) {
+      setTheme(template.step3.theme);
+      setMainColor(template.step3.mainColor);
+      setStyle(template.step3.style);
+      setMessage(template.step3.message);
+      setDecoration(template.step3.decoration);
+      setProgramScript(template.step3.programScript || []);
+      setKeyActivities(template.step3.keyActivities || []);
+    }
 
-    // Load Step 3.5
-    setPartnerCosts(template.step3_5.partnerCosts || []);
-    setDeposits(template.step3_5.deposits || []);
+    // Load Step 3.5 (UI Step 4)
+    if (startUiStep <= 4) {
+      setPartnerCosts(template.step3_5.partnerCosts || []);
+      setDeposits(template.step3_5.deposits || []);
+    }
 
-    // Load Step 4-7
-    setPrepChecklist(template.step4.checklist || []);
-    setMarketingChecklist(template.step5.marketingChecklist || []);
-    setEventDayChecklist(template.step6.eventDayChecklist || []);
-    setPostEventRows(template.step7.postEvent || []);
+    // Load Step 4 (UI Step 5)
+    if (startUiStep <= 5) {
+      setPrepChecklist(template.step4.checklist || []);
+    }
+
+    // Load Step 5 (UI Step 6)
+    if (startUiStep <= 6) {
+      setMarketingChecklist(template.step5.marketingChecklist || []);
+    }
+
+    // Load Step 6 (UI Step 7)
+    if (startUiStep <= 7) {
+      setEventDayChecklist(template.step6.eventDayChecklist || []);
+    }
+
+    // Load Step 7 (UI Step 8)
+    if (startUiStep <= 8) {
+      setPostEventRows(template.step7.postEvent || []);
+    }
 
     toast.success("✅ Đã tải dữ liệu mẫu thành công!");
   };
@@ -852,7 +1082,7 @@ export default function EventPlansPage() {
               className="flex-1 bg-purple-600 hover:bg-purple-700"
               onClick={() => {
                 if (bookingInfo?.event_type) {
-                  loadTemplate(bookingInfo.event_type);
+                  loadTemplate(bookingInfo.event_type, step);
                 }
                 setShowTemplateDialog(false);
                 setOpen(true);
@@ -2454,6 +2684,181 @@ export default function EventPlansPage() {
               </Card>
             </div>
           )}
+          {/* STEP 9 - KẾ HOẠCH BÁN VÉ (chỉ cho Sự kiện đại chúng) */}
+          {step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng" && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold">
+                9. Kế hoạch bán vé
+              </h2>
+
+              {bookingInfo && (
+                <Card className="p-4 bg-blue-50">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    🎫 Thông tin vé từ booking
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {bookingInfo.tickets?.map((ticket, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-white p-2 rounded border"
+                      >
+                        <p className="text-xs text-gray-600">
+                          {ticket.type}
+                        </p>
+                        <p className="font-bold">{ticket.quantity} vé</p>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Thời gian mở bán */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">Thời gian bán vé</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Ngày mở bán</Label>
+                    <Input
+                      type="datetime-local"
+                      value={ticketSaleStart}
+                      onChange={(e) => setTicketSaleStart(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Ngày đóng bán</Label>
+                    <Input
+                      type="datetime-local"
+                      value={ticketSaleEnd}
+                      onChange={(e) => setTicketSaleEnd(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </Card>
+
+              {/* Bảng giá chi tiết */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">
+                  Bảng giá chi tiết cho từng loại vé
+                </h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  Phân loại vé theo mức giá và timeline
+                </p>
+
+                <div className="space-y-4">
+                  {ticketSalePricing.map((ticket, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-50 p-4 rounded-lg border space-y-3"
+                    >
+                      <div className="flex items-center justify-between border-b pb-2">
+                        <div>
+                          <p className="text-sm text-gray-600">Loại vé</p>
+                          <p className="font-bold text-lg">{ticket.type}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-600">Số lượng</p>
+                          <p className="font-semibold text-blue-600">
+                            {ticket.quantity} vé
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-xs">
+                            💰 Giá Early Bird (VNĐ)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="Giá sớm"
+                            value={ticket.earlyBirdPrice || ""}
+                            onChange={(e) =>
+                              updateTicketSalePricing(
+                                idx,
+                                "earlyBirdPrice",
+                                +e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">
+                            💵 Giá thường (VNĐ)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="Giá thường"
+                            value={ticket.regularPrice || ""}
+                            onChange={(e) =>
+                              updateTicketSalePricing(
+                                idx,
+                                "regularPrice",
+                                +e.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="text-xs">
+                            💸 Giá muộn (VNĐ)
+                          </Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="Giá muộn"
+                            value={ticket.latePrice || ""}
+                            onChange={(e) =>
+                              updateTicketSalePricing(
+                                idx,
+                                "latePrice",
+                                +e.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* Chính sách và giới hạn */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-3">
+                  Chính sách và giới hạn
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <Label>Giới hạn số vé mỗi người</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      placeholder="VD: 5 vé/người"
+                      value={ticketLimitPerPerson || ""}
+                      onChange={(e) =>
+                        setTicketLimitPerPerson(+e.target.value)
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Chính sách hoàn/đổi vé</Label>
+                    <Textarea
+                      placeholder="VD: Hoàn vé 100% trước 7 ngày, 50% trước 3 ngày, không hoàn sau đó..."
+                      value={refundPolicy}
+                      onChange={(e) => setRefundPolicy(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
           {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between mt-6">
             <Button disabled={step === 1} onClick={() => setStep(step - 1)}>
@@ -2474,11 +2879,24 @@ export default function EventPlansPage() {
               </div>
             )}
 
-            {step < 8 && step !== 3 && (
-              <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
+            {/* Nút Tiếp tục - kiểm tra loại sự kiện */}
+            {step !== 3 && (
+              <>
+                {/* Nếu là Sự kiện đại chúng: hiển thị nút đến step 9 */}
+                {bookingInfo?.event_type === "Sự kiện đại chúng" && step < 9 && (
+                  <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
+                )}
+                
+                {/* Nếu không phải Sự kiện đại chúng: dừng ở step 8 */}
+                {bookingInfo?.event_type !== "Sự kiện đại chúng" && step < 8 && (
+                  <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
+                )}
+              </>
             )}
 
-            {step === 8 && (
+            {/* Nút Hoàn tất - step 9 cho Sự kiện đại chúng, step 8 cho các loại khác */}
+            {((step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
+              (step === 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
               <Button
                 className="bg-green-600 text-white"
                 onClick={handleCompletePlan}
@@ -2594,19 +3012,25 @@ export default function EventPlansPage() {
                               status === "pending_manager"
                             ) {
                               setStep(1);
+                              setOpen(true);
                             } else if (status === "customer_approved") {
                               setStep(4);
+                              setOpen(true);
+                            } else if (status === "customer_approved_demo") {
+                              setStep(4); // Start from step 4 (Kế hoạch chi phí)
+                              setShowTemplateDialog(true); // Show confirmation for sample data
                             } else {
                               setStep(1);
+                              setOpen(true);
                             }
-
-                            setOpen(true);
                           } else {
                             toast.error("❌ Không thể tải kế hoạch!");
                           }
                         }}
                       >
-                        ✏️ Xem / Sửa kế hoạch
+                        {status === "customer_approved_demo" 
+                          ? "📝 Lên kế hoạch chi tiết" 
+                          : "✏️ Xem / Sửa kế hoạch"}
                       </Button>
                     )}
                   </div>

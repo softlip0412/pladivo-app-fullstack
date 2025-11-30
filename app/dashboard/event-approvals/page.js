@@ -14,6 +14,18 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
 export default function EventApprovalPage() {
   const [plans, setPlans] = useState([]);
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -45,18 +57,34 @@ export default function EventApprovalPage() {
   }, []);
 
   // 🟠 Phê duyệt / từ chối
-  async function handleApproval(status) {
+  async function handleApproval(action) {
     if (!selectedPlan?._id) return;
+    
+    let newStatus;
+    if (action === "approve") {
+      // Tự động chọn status phê duyệt dựa trên status hiện tại
+      if (selectedPlan.status === "pending_manager") {
+        newStatus = "manager_approved";
+      } else if (selectedPlan.status === "pending_manager_demo") {
+        newStatus = "manager_approved_demo";
+      } else {
+        toast.error("❌ Trạng thái kế hoạch không hợp lệ để phê duyệt!");
+        return;
+      }
+    } else if (action === "reject") {
+      newStatus = "cancelled";
+    }
+    
     try {
       const res = await fetch(`/api/event-plans/${selectedPlan._id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: newStatus }),
       });
       const json = await res.json();
       if (json.success) {
         toast.success(
-          status === "manager_approved_demo"
+          action === "approve"
             ? "✅ Kế hoạch đã được phê duyệt!"
             : "🚫 Kế hoạch đã bị từ chối!"
         );
@@ -168,7 +196,7 @@ export default function EventApprovalPage() {
                       <TableRow key={i}>
                         <TableCell>{t.time}</TableCell>
                         <TableCell>{t.task}</TableCell>
-                        <TableCell>{t.manager?.name}</TableCell>
+                        <TableCell>{typeof t.manager === 'object' ? t.manager?.name : t.manager}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -186,7 +214,7 @@ export default function EventApprovalPage() {
                       <TableRow key={i}>
                         <TableCell>{s.department}</TableCell>
                         <TableCell>{s.duty}</TableCell>
-                        <TableCell>{s.manager?.name}</TableCell>
+                        <TableCell>{typeof s.manager === 'object' ? s.manager?.name : s.manager}</TableCell>
                         <TableCell>{s.note}</TableCell>
                       </TableRow>
                     ))}
@@ -205,7 +233,7 @@ export default function EventApprovalPage() {
                       <TableRow key={i}>
                         <TableCell>{e.time}</TableCell>
                         <TableCell>{e.activity}</TableCell>
-                        <TableCell>{e.manager?.name}</TableCell>
+                        <TableCell>{typeof e.manager === 'object' ? e.manager?.name : e.manager}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -217,11 +245,59 @@ export default function EventApprovalPage() {
                 <h3 className="font-semibold text-lg">🎨 Step 3: Chủ đề & Trang trí</h3>
                 <Table>
                   <TableBody>
-                    <TableRow><TableCell>Theme</TableCell><TableCell>{selectedPlan.step3?.theme}</TableCell></TableRow>
-                    <TableRow><TableCell>Main Color</TableCell><TableCell>{selectedPlan.step3?.mainColor}</TableCell></TableRow>
-                    <TableRow><TableCell>Style</TableCell><TableCell>{selectedPlan.step3?.style}</TableCell></TableRow>
-                    <TableRow><TableCell>Message</TableCell><TableCell>{selectedPlan.step3?.message}</TableCell></TableRow>
-                    <TableRow><TableCell>Decoration</TableCell><TableCell>{selectedPlan.step3?.decoration}</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium">Theme</TableCell><TableCell>{selectedPlan.step3?.theme}</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium">Main Color</TableCell><TableCell>{selectedPlan.step3?.mainColor}</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium">Style</TableCell><TableCell>{selectedPlan.step3?.style}</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium">Message</TableCell><TableCell>{selectedPlan.step3?.message}</TableCell></TableRow>
+                    <TableRow><TableCell className="font-medium">Decoration</TableCell><TableCell>{selectedPlan.step3?.decoration}</TableCell></TableRow>
+                  </TableBody>
+                </Table>
+
+                {/* Program Script */}
+                <h4 className="font-medium mt-4">📜 Kịch bản chương trình</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Thời gian</TableHead>
+                      <TableHead>Nội dung</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPlan.step3?.programScript?.map((item, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{formatDate(item.time)}</TableCell>
+                        <TableCell>{item.content}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!selectedPlan.step3?.programScript || selectedPlan.step3.programScript.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-gray-500">Chưa có kịch bản</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+
+                {/* Key Activities */}
+                <h4 className="font-medium mt-4">⭐ Hoạt động chính</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Hoạt động</TableHead>
+                      <TableHead>Mức độ quan trọng</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPlan.step3?.keyActivities?.map((item, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{item.activity}</TableCell>
+                        <TableCell>{item.importance}</TableCell>
+                      </TableRow>
+                    ))}
+                    {(!selectedPlan.step3?.keyActivities || selectedPlan.step3.keyActivities.length === 0) && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-center text-gray-500">Chưa có hoạt động chính</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </section>
@@ -249,7 +325,7 @@ export default function EventApprovalPage() {
                           <TableRow key={i}>
                             <TableCell>{item.category}</TableCell>
                             <TableCell>{item.description}</TableCell>
-                            <TableCell>{item.owner}</TableCell>
+                            <TableCell>{typeof item.owner === 'object' ? item.owner?.name : item.owner}</TableCell>
                             <TableCell>{item.deadline}</TableCell>
                           </TableRow>
                         ))}
@@ -263,11 +339,11 @@ export default function EventApprovalPage() {
               <div className="flex justify-end gap-3 pt-4">
                 <Button
                   className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleApproval("manager_approved_demo")}
+                  onClick={() => handleApproval("approve")}
                 >
                   ✅ Chấp nhận kế hoạch
                 </Button>
-                <Button variant="destructive" onClick={() => handleApproval("cancelled")}>
+                <Button variant="destructive" onClick={() => handleApproval("reject")}>
                   ❌ Từ chối kế hoạch
                 </Button>
               </div>
