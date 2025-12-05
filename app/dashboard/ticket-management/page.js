@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,8 +18,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Ticket, Edit2, Save, X } from "lucide-react";
+import { Ticket, Edit2, Save, X, Calendar, DollarSign, Plus, Trash2, MapPin } from "lucide-react";
+import { toast } from "sonner";
 
 export default function TicketManagementPage() {
   const [bookings, setBookings] = useState([]);
@@ -31,9 +34,10 @@ export default function TicketManagementPage() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [ticketData, setTicketData] = useState(null);
-  const [editingTicketId, setEditingTicketId] = useState(null);
-  const [editingQuantity, setEditingQuantity] = useState("");
-  const [updatingId, setUpdatingId] = useState(null);
+  
+  // Config states
+  const [configLoading, setConfigLoading] = useState(false);
+  const [ticketConfigs, setTicketConfigs] = useState({}); // { ticketType: { price, seating_areas: [{area_name, seat_count}], sale_start_date, sale_end_date } }
 
   // Fetch bookings
   const fetchBookings = async () => {
@@ -79,79 +83,138 @@ export default function TicketManagementPage() {
     setFilteredBookings(filtered);
   };
 
-  const fetchTicketData = async (bookingId) => {
+  const fetchTicketConfig = async (bookingId) => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}/tickets`);
+      setConfigLoading(true);
+      const res = await fetch(`/api/ticket-sale-config?booking_id=${bookingId}`);
       const data = await res.json();
 
-      if (data.success) {
-        setTicketData(data.data);
+      if (data.success && data.data) {
+        // Populate existing config
+        const config = data.data;
+        const configs = {};
+        config.ticket_types.forEach(t => {
+          configs[t.type] = {
+            price: t.price || "",
+            seating_areas: t.seating_areas || [],
+            sale_start_date: t.sale_start_date ? t.sale_start_date.split('T')[0] : "",
+            sale_end_date: t.sale_end_date ? t.sale_end_date.split('T')[0] : ""
+          };
+        });
+        setTicketConfigs(configs);
+      } else {
+        // Reset if no config exists
+        setTicketConfigs({});
       }
     } catch (err) {
-      console.error("Error fetching ticket data:", err);
+      console.error("Error fetching ticket config:", err);
+    } finally {
+      setConfigLoading(false);
     }
   };
 
   const handleOpenModal = (booking) => {
     setSelectedBooking(booking);
     setIsModalOpen(true);
-    fetchTicketData(booking._id);
+    setTicketData(booking); // Use booking data directly for ticket types
+    fetchTicketConfig(booking._id);
   };
 
-  const handleUpdateQuantity = async (ticketId, newQuantity) => {
-    if (!newQuantity || newQuantity < 0) {
-      alert("Vui lòng nhập số lượng hợp lệ");
-      return;
+  const handleTicketConfigChange = (type, field, value) => {
+    setTicketConfigs(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleAddSeatingArea = (ticketType) => {
+    setTicketConfigs(prev => ({
+      ...prev,
+      [ticketType]: {
+        ...prev[ticketType],
+        seating_areas: [...(prev[ticketType]?.seating_areas || []), { area_name: "", seat_count: 0 }]
+      }
+    }));
+  };
+
+  const handleRemoveSeatingArea = (ticketType, index) => {
+    setTicketConfigs(prev => ({
+      ...prev,
+      [ticketType]: {
+        ...prev[ticketType],
+        seating_areas: prev[ticketType].seating_areas.filter((_, i) => i !== index)
+      }
+    }));
+  };
+
+  const handleSeatingAreaChange = (ticketType, index, field, value) => {
+    setTicketConfigs(prev => ({
+      ...prev,
+      [ticketType]: {
+        ...prev[ticketType],
+        seating_areas: prev[ticketType].seating_areas.map((area, i) => 
+          i === index ? { ...area, [field]: value } : area
+        )
+      }
+    }));
+  };
+
+  const handleSaveConfig = async () => {
+    // Validate all ticket types have required fields
+    const ticketTypes = (ticketData?.tickets || []).map(t => {
+      const config = ticketConfigs[t.type] || {};
+      return {
+        type: t.type,
+        quantity: t.quantity,
+        price: config.price || 0,
+        seating_areas: config.seating_areas || [],
+        sale_start_date: config.sale_start_date || "",
+        sale_end_date: config.sale_end_date || ""
+      };
+    });
+
+    // Validate each ticket type
+    for (const ticket of ticketTypes) {
+      if (!ticket.price || ticket.price <= 0) {
+        toast.error(`Vui lòng nhập giá vé hợp lệ cho loại vé "${ticket.type}"`);
+        return;
+      }
+      if (!ticket.sale_start_date || !ticket.sale_end_date) {
+        toast.error(`Vui lòng nhập thời gian bán vé cho loại vé "${ticket.type}"`);
+        return;
+      }
+      // Validate seating areas
+      for (const area of ticket.seating_areas) {
+        if (!area.area_name || !area.seat_count || area.seat_count <= 0) {
+          toast.error(`Vui lòng nhập đầy đủ thông tin khu vực ghế cho loại vé "${ticket.type}"`);
+          return;
+        }
+      }
     }
 
     try {
-      setUpdatingId(ticketId);
-      const res = await fetch(
-        `/api/bookings/${selectedBooking._id}/tickets`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ticketId,
-            newQuantity: parseInt(newQuantity),
-          }),
-        }
-      );
+      const res = await fetch("/api/ticket-sale-config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          booking_id: selectedBooking._id,
+          ticket_types: ticketTypes
+        })
+      });
 
       const data = await res.json();
-
       if (data.success) {
-        // Update local state
-        setTicketData({
-          ...ticketData,
-          tickets: ticketData.tickets.map((t) =>
-            t._id === ticketId ? { ...t, quantity: newQuantity } : t
-          ),
-        });
-
-        // Update bookings list
-        setBookings(
-          bookings.map((b) =>
-            b._id === selectedBooking._id
-              ? {
-                  ...b,
-                  tickets: b.tickets.map((t) =>
-                    t._id === ticketId ? { ...t, quantity: newQuantity } : t
-                  ),
-                }
-              : b
-          )
-        );
-
-        setEditingTicketId(null);
-        setEditingQuantity("");
-        alert("✅ Cập nhật số lượng vé thành công!");
+        toast.success("Lưu cấu hình bán vé thành công!");
+        setIsModalOpen(false);
+      } else {
+        toast.error(data.message || "Lỗi khi lưu cấu hình");
       }
     } catch (err) {
-      console.error("Error updating ticket:", err);
-      alert("❌ Lỗi cập nhật vé");
-    } finally {
-      setUpdatingId(null);
+      console.error("Error saving config:", err);
+      toast.error("Lỗi hệ thống khi lưu cấu hình");
     }
   };
 
@@ -342,7 +405,7 @@ export default function TicketManagementPage() {
                     onClick={() => handleOpenModal(booking)}
                   >
                     <Edit2 className="w-4 h-4 mr-2" />
-                    Quản lý vé
+                    Cấu hình bán vé
                   </Button>
                 </CardContent>
               </Card>
@@ -353,116 +416,162 @@ export default function TicketManagementPage() {
 
       {/* Ticket Management Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              🎫 Quản lý vé - {ticketData?.customer_name}
+              🎫 Cấu hình bán vé - {ticketData?.customer_name}
             </DialogTitle>
           </DialogHeader>
 
           {ticketData && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Event Info */}
-              <Card className="bg-blue-50">
-                <CardContent className="pt-6">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-gray-600">Sự kiện</p>
-                      <p className="font-semibold">
-                        {ticketData.event_type}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-600">Ngày diễn ra</p>
-                      <p className="font-semibold">
-                        {formatDate(ticketData.event_date)}
-                      </p>
-                    </div>
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-600">Sự kiện</p>
+                    <p className="font-semibold">{ticketData.event_type}</p>
                   </div>
-                </CardContent>
-              </Card>
-
-              {/* Ticket Management */}
-              <div className="space-y-3">
-                {ticketData.tickets?.map((ticket) => (
-                  <Card key={ticket._id}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <p className="font-semibold">{ticket.type}</p>
-                          <p className="text-sm text-gray-600">
-                            Số lượng hiện tại:{" "}
-                            <span className="font-bold text-blue-600">
-                              {ticket.quantity.toLocaleString()}
-                            </span>
-                          </p>
-                        </div>
-
-                        {editingTicketId === ticket._id ? (
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              value={editingQuantity}
-                              onChange={(e) =>
-                                setEditingQuantity(e.target.value)
-                              }
-                              placeholder="Nhập số lượng"
-                              className="w-32"
-                              min="0"
-                            />
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                handleUpdateQuantity(
-                                  ticket._id,
-                                  editingQuantity
-                                )
-                              }
-                              disabled={updatingId === ticket._id}
-                            >
-                              <Save className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setEditingTicketId(null)}
-                              disabled={updatingId === ticket._id}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setEditingTicketId(ticket._id);
-                              setEditingQuantity(ticket.quantity);
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                  <div>
+                    <p className="text-gray-600">Ngày diễn ra</p>
+                    <p className="font-semibold">
+                      {formatDate(ticketData.event_date)}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              {/* Summary */}
-              <Card className="bg-green-50">
-                <CardContent className="pt-6">
-                  <p className="text-sm font-semibold">
-                    Tổng cộng:{" "}
-                    <span className="text-green-600">
-                      {ticketData.tickets
-                        ?.reduce((sum, t) => sum + t.quantity, 0)
-                        .toLocaleString()}{" "}
-                      vé
-                    </span>
-                  </p>
-                </CardContent>
-              </Card>
+              {/* Ticket Configuration */}
+              <div className="space-y-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Ticket className="w-4 h-4" /> Cấu hình từng loại vé
+                </h3>
+                <div className="space-y-4">
+                  {(ticketData.tickets || []).map((ticket) => {
+                    const config = ticketConfigs[ticket.type] || {};
+                    return (
+                      <div key={ticket._id} className="border rounded-lg p-4 space-y-4 bg-gray-50">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="font-semibold text-lg">{ticket.type}</h4>
+                            <p className="text-sm text-gray-600">
+                              Số lượng: <Badge variant="secondary">{ticket.quantity.toLocaleString()}</Badge>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Price */}
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-1">
+                              <DollarSign className="w-3 h-3" /> Giá vé (VNĐ)
+                            </Label>
+                            <Input
+                              type="number"
+                              placeholder="Nhập giá vé"
+                              value={config.price || ""}
+                              onChange={(e) => handleTicketConfigChange(ticket.type, 'price', e.target.value)}
+                            />
+                          </div>
+
+                          {/* Sale Start Date */}
+                          <div className="space-y-2">
+                            <Label className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> Ngày bắt đầu bán
+                            </Label>
+                            <Input
+                              type="date"
+                              value={config.sale_start_date || ""}
+                              onChange={(e) => handleTicketConfigChange(ticket.type, 'sale_start_date', e.target.value)}
+                            />
+                          </div>
+
+                          {/* Sale End Date */}
+                          <div className="space-y-2 md:col-span-2">
+                            <Label className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> Ngày kết thúc bán
+                            </Label>
+                            <Input
+                              type="date"
+                              value={config.sale_end_date || ""}
+                              onChange={(e) => handleTicketConfigChange(ticket.type, 'sale_end_date', e.target.value)}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Seating Areas Section */}
+                        <div className="space-y-3 border-t pt-4">
+                          <div className="flex justify-between items-center">
+                            <Label className="flex items-center gap-1 text-base">
+                              <MapPin className="w-4 h-4" /> Khu vực ghế ngồi
+                            </Label>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleAddSeatingArea(ticket.type)}
+                            >
+                              <Plus className="w-4 h-4 mr-1" /> Thêm khu vực
+                            </Button>
+                          </div>
+
+                          {(config.seating_areas || []).length === 0 ? (
+                            <p className="text-sm text-gray-500 italic">
+                              Chưa có khu vực nào. Click "Thêm khu vực" để thêm.
+                            </p>
+                          ) : (
+                            <div className="space-y-2">
+                              {(config.seating_areas || []).map((area, index) => (
+                                <div key={index} className="flex gap-2 items-start bg-white p-3 rounded border">
+                                  <div className="flex-1 grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Tên khu vực</Label>
+                                      <Input
+                                        type="text"
+                                        placeholder="VD: Khu A, Hàng 1-5"
+                                        value={area.area_name || ""}
+                                        onChange={(e) => handleSeatingAreaChange(ticket.type, index, 'area_name', e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Số ghế</Label>
+                                      <Input
+                                        type="number"
+                                        placeholder="Số ghế"
+                                        value={area.seat_count || ""}
+                                        onChange={(e) => handleSeatingAreaChange(ticket.type, index, 'seat_count', e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 mt-5"
+                                    onClick={() => handleRemoveSeatingArea(ticket.type, index)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Hủy bỏ
+                </Button>
+                <Button onClick={handleSaveConfig} disabled={configLoading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  Lưu cấu hình
+                </Button>
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
