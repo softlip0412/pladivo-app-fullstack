@@ -21,9 +21,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_SECRET,
 });
 
-export const config = {
-  api: { bodyParser: false },
-};
+
 
 export async function PATCH(request, { params }) {
   await connectDB();
