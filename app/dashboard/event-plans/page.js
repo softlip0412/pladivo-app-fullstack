@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import {
@@ -31,6 +32,7 @@ import { toast } from "sonner";
 import eventTemplates from "../data/event-templates";
 
 export default function EventPlansPage() {
+  const router = useRouter();
   const [plans, setPlans] = useState([]);
   const [partners, setPartners] = useState([]);
   const [staff, setStaff] = useState([]);
@@ -102,7 +104,7 @@ export default function EventPlansPage() {
   const [partnerCosts, setPartnerCosts] = useState([
     { partnerId: "", partnerName: "", description: "", amount: 0, note: "" },
   ]);
-  const [deposits, setDeposits] = useState([
+  const [paymentPlan, setPaymentPlan] = useState([
     { description: "", amount: 0, dueDate: "", status: "pending", note: "" },
   ]);
 
@@ -400,8 +402,8 @@ export default function EventPlansPage() {
       setKeyActivities(editingPlan.step3?.keyActivities || []);
       setPartnerCosts(editingPlan.step3_5?.partnerCosts || []);
       
-      setDeposits(
-        editingPlan.step3_5?.deposits?.map(item => ({
+      setPaymentPlan(
+        editingPlan.step3_5?.paymentPlan?.map(item => ({
           ...item,
           dueDate: formatDateForInput(item.dueDate)
         })) || []
@@ -502,7 +504,7 @@ export default function EventPlansPage() {
     setProgramScript([]);
     setKeyActivities([]);
     setPartnerCosts([]);
-    setDeposits([]);
+    setPaymentPlan([]);
     setPrepChecklist([]);
     setMarketingChecklist([]);
     setEventDayChecklist([]);
@@ -580,6 +582,12 @@ export default function EventPlansPage() {
           programScript,
           keyActivities,
         },
+        step3_5: {
+          partnerCosts,
+          paymentPlan,
+          totalEstimatedCost: (partnerCosts || []).reduce((s, p) => s + (p.amount || 0), 0),
+          totalPayment: (paymentPlan || []).reduce((s, d) => s + (d.amount || 0), 0),
+        },
       };
 
       const checkRes = await fetch(
@@ -597,7 +605,7 @@ export default function EventPlansPage() {
       const json = await res.json();
 
       if (json.success) {
-        toast.success(`✅ Lưu bước 1-3 thành công!`);
+        toast.success(`✅ Lưu bước 1-4 thành công!`);
         return json.data;
       } else {
         toast.error("❌ Lỗi: " + json.message);
@@ -609,6 +617,22 @@ export default function EventPlansPage() {
       return null;
     }
   };
+
+  const handleSaveAndContinueToDetails = async () => {
+    try {
+      const savedData = await handleSaveStep123();
+      if (savedData) {
+        toast.success("✅ Đã lưu! Chuyển sang trang kế hoạch chi tiết...");
+        setOpen(false);
+        // Redirect to details page with booking_id
+        router.push(`/dashboard/event-plan-details?booking_id=${selectedBookingId}`);
+      }
+    } catch (err) {
+      console.error("Lỗi khi lưu và chuyển trang:", err);
+      toast.error("❌ Đã xảy ra lỗi");
+    }
+  };
+
 
   const handleSubmitForManagerApproval = async () => {
     try {
@@ -650,6 +674,12 @@ export default function EventPlansPage() {
           programScript,
           keyActivities,
         },
+        step3_5: {
+          partnerCosts,
+          paymentPlan,
+          totalEstimatedCost: (partnerCosts || []).reduce((s, p) => s + (p.amount || 0), 0) + (budgetRows || []).reduce((s, b) => s + ((b.cost || 0) * (b.quantity || 1)), 0),
+          totalPayment: (paymentPlan || []).reduce((s, d) => s + (d.amount || 0), 0),
+        },
       };
 
       const checkRes = await fetch(
@@ -679,13 +709,41 @@ export default function EventPlansPage() {
     }
   };
 
+  const handleCustomerApproval = async () => {
+    try {
+      const payload = {
+        booking_id: selectedBookingId,
+        status: "customer_approved_demo",
+      };
+
+      const res = await fetch("/api/event-plans", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        toast.success("✅ Đã cập nhật trạng thái: Khách hàng đồng ý!");
+        setOpen(false);
+        fetchBookings();
+      } else {
+        toast.error("❌ Lỗi: " + json.message);
+      }
+    } catch (err) {
+      console.error("Customer approval error:", err);
+      toast.error("❌ Đã xảy ra lỗi");
+    }
+  };
+
   const handleCompletePlan = async () => {
     try {
       const totalCost = partnerCosts.reduce(
         (sum, p) => sum + (p.amount || 0),
         0
       );
-      const totalDeposit = deposits.reduce(
+      const totalPayment = paymentPlan.reduce(
         (sum, d) => sum + (d.amount || 0),
         0
       );
@@ -729,10 +787,10 @@ export default function EventPlansPage() {
         },
         step3_5: {
           partnerCosts,
-          deposits,
+          paymentPlan,
           totalEstimatedCost: totalCost,
-          totalDeposit,
-          totalRemaining: totalCost - totalDeposit,
+          totalPayment,
+          totalRemaining: totalCost - totalPayment,
         },
         step4: { 
           checklist: prepChecklist.map(item => ({
@@ -853,8 +911,8 @@ export default function EventPlansPage() {
     });
   };
 
-  const updateDeposit = (index, field, value) => {
-    setDeposits((prev) => {
+  const updatePaymentPlan = (index, field, value) => {
+    setPaymentPlan((prev) => {
       const newRows = [...prev];
       newRows[index][field] = value;
       return newRows;
@@ -957,7 +1015,7 @@ export default function EventPlansPage() {
     // Load Step 3.5 (UI Step 4)
     if (startUiStep <= 4) {
       setPartnerCosts(template.step3_5.partnerCosts || []);
-      setDeposits(template.step3_5.deposits || []);
+      setPaymentPlan(template.step3_5.paymentPlan || []);
     }
 
     // Load Step 4 (UI Step 5)
@@ -981,6 +1039,62 @@ export default function EventPlansPage() {
     }
 
     toast.success("✅ Đã tải dữ liệu mẫu thành công!");
+  };
+
+  // ============ HANDLE OPEN DIALOG ============
+  const handleOpenPlanDialog = async (booking, mode, plan = null) => {
+    try {
+      if (mode === "create") {
+        setEditingPlan(null);
+        setSelectedBookingId(booking._id);
+        
+        // Ensure bookingInfo is fresh
+        const bookingRes = await fetch(`/api/bookings/${booking._id}`);
+        const bookingJson = await bookingRes.json();
+        
+        if (bookingJson.success) {
+            setBookingInfo(bookingJson.data);
+            fetchServiceDetails(bookingJson.data);
+            
+            // Only after setting bookingInfo, proceed
+            setStep(1);
+            setShowTemplateDialog(true);
+        } else {
+            toast.error("Không thể tải thông tin booking");
+        }
+      } else if (mode === "edit") {
+        const planRes = await fetch(`/api/event-plans?booking_id=${booking._id}`);
+        const planJson = await planRes.json();
+
+        if (planJson.success && planJson.data) {
+          setEditingPlan(planJson.data);
+          setSelectedBookingId(booking._id);
+          
+          await fetchBookingDetail(booking._id);
+
+          const status = planJson.data.status;
+          
+          if (status === "draft" || status === "pending_manager") {
+            setStep(1);
+            setOpen(true);
+          } else if (status === "customer_approved") {
+            setStep(4);
+            setOpen(true);
+          } else if (status === "customer_approved_demo") {
+            setStep(4);
+            setShowTemplateDialog(true);
+          } else {
+            setStep(1);
+            setOpen(true);
+          }
+        } else {
+          toast.error("❌ Không thể tải kế hoạch!");
+        }
+      }
+    } catch (err) {
+      console.error("Open dialog error:", err);
+      toast.error("Đã xảy ra lỗi khi mở kế hoạch");
+    }
   };
 
   // ============ STATUS BADGE ============
@@ -1108,9 +1222,22 @@ export default function EventPlansPage() {
           <div className="flex justify-between items-center mb-4">
             {editingPlan && getStatusBadge(editingPlan.status)}
           </div>
+
+          {editingPlan?.status === "manager_approved_demo" && (
+            <div className="bg-green-50 p-4 rounded mb-4 border border-green-200">
+              <p className="text-green-700 font-semibold flex items-center">
+                <CheckCircle className="w-5 h-5 mr-2" />
+                ✅ Kế hoạch demo đã được phê duyệt
+              </p>
+              <p className="text-sm text-green-600 mt-1 ml-7">
+                Vui lòng vào trang <b>"Kế hoạch chi tiết"</b> để tiếp tục lập kế hoạch chi tiết (Step 4-9).
+                Bạn không thể chỉnh sửa thông tin ở đây nữa.
+              </p>
+            </div>
+          )}
           {/* STEP 1 */}
           {step === 1 && (
-            <div className="space-y-4">
+            <fieldset disabled={editingPlan?.status === "manager_approved_demo"} className="space-y-4 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 1. Xác định mục tiêu & loại sự kiện
               </h2>
@@ -1173,11 +1300,11 @@ export default function EventPlansPage() {
                   onChange={(e) => setEventCategory(e.target.value)}
                 />
               </div>
-            </div>
+            </fieldset>
           )}
           {/* STEP 2 */}
           {step === 2 && (
-            <div className="space-y-6">
+            <fieldset disabled={editingPlan?.status === "manager_approved_demo"} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 2. Lập kế hoạch tổng thể (Master Plan)
               </h2>
@@ -1516,103 +1643,7 @@ export default function EventPlansPage() {
                 )}
               </Card>
 
-              {/* Dự trù ngân sách */}
-              <div>
-                <h3 className="font-semibold mb-2">Dự trù ngân sách</h3>
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th>Hạng mục</th>
-                      <th>Mô tả</th>
-                      <th>Đơn vị</th>
-                      <th>SL</th>
-                      <th>Chi phí</th>
-                      <th>Ghi chú</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {budgetRows.map((row, i) => (
-                      <tr key={i}>
-                        <td className="border p-1">
-                          <Input
-                            value={row.category}
-                            onChange={(e) =>
-                              updateBudget(i, "category", e.target.value)
-                            }
-                          />
-                        </td>
-                        <td className="border p-1">
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updateBudget(i, "description", e.target.value)
-                            }
-                          />
-                        </td>
-                        <td className="border p-1">
-                          <Input
-                            value={row.unit}
-                            onChange={(e) =>
-                              updateBudget(i, "unit", e.target.value)
-                            }
-                          />
-                        </td>
-                        <td className="border p-1">
-                          <Input
-                            type="number"
-                            value={row.quantity}
-                            onChange={(e) =>
-                              updateBudget(i, "quantity", +e.target.value)
-                            }
-                          />
-                        </td>
-                        <td className="border p-1">
-                          <Input
-                            type="number"
-                            value={row.cost}
-                            onChange={(e) =>
-                              updateBudget(i, "cost", +e.target.value)
-                            }
-                          />
-                        </td>
-                        <td className="border p-1">
-                          <Input
-                            value={row.note}
-                            onChange={(e) =>
-                              updateBudget(i, "note", e.target.value)
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <Button
-                  className="mt-2"
-                  onClick={() =>
-                    setBudgetRows([
-                      ...budgetRows,
-                      {
-                        category: "",
-                        description: "",
-                        unit: "",
-                        quantity: 1,
-                        cost: 0,
-                        note: "",
-                      },
-                    ])
-                  }
-                >
-                  + Thêm hạng mục
-                </Button>
-                <div className="text-right font-bold mt-3">
-                  Tổng cộng:{" "}
-                  {budgetRows
-                    .reduce((sum, r) => sum + r.cost * r.quantity, 0)
-                    .toLocaleString()}{" "}
-                  ₫
-                </div>
-              </div>
+
 
               {/* Timeline chuẩn bị */}
               <div>
@@ -1858,11 +1889,11 @@ export default function EventPlansPage() {
                   + Thêm dòng
                 </Button>
               </div>
-            </div>
+            </fieldset>
           )}
           {/* STEP 3 */}
           {step === 3 && (
-            <div className="space-y-6">
+            <fieldset disabled={editingPlan?.status === "manager_approved_demo"} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 3. Xây dựng ý tưởng & Concept
               </h2>
@@ -2020,12 +2051,131 @@ export default function EventPlansPage() {
                   + Thêm hoạt động
                 </Button>
               </Card>
-            </div>
+            </fieldset>
           )}
+
           {/* STEP 4 - KẾ HOẠCH CHI PHÍ */}
           {step === 4 && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved_demo", "manager_approved", "pending_manager", "customer_approved_demo", "customer_approved"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">4. Kế hoạch chi phí</h2>
+
+              {/* Dịch vụ khách đã chọn */}
+              {bookingServices.length > 0 && (
+                <Card className="p-4 bg-muted">
+                  <h3 className="font-semibold mb-2">Dịch vụ khách đã chọn</h3>
+                  <table className="w-full border text-sm bg-white">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border p-2">Dịch vụ</th>
+                        <th className="border p-2">Đơn vị</th>
+                        <th className="border p-2">Số lượng</th>
+                        <th className="border p-2">Ghi chú</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bookingServices.map((s, idx) => (
+                        <tr key={idx}>
+                          <td className="border p-2">{s.name}</td>
+                          <td className="border p-2">{s.unit}</td>
+                          <td className="border p-2">{s.quantity}</td>
+                          <td className="border p-2">{s.note}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </Card>
+              )}
+
+              {/* Dự trù ngân sách */}
+              <Card className="p-4">
+                <h3 className="font-semibold mb-2">Dự trù ngân sách</h3>
+                <table className="w-full border text-sm">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="border p-1">Hạng mục</th>
+                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Đơn vị</th>
+                      <th className="border p-1">SL</th>
+                      <th className="border p-1">Chi phí</th>
+                      <th className="border p-1">Ghi chú</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {budgetRows.map((row, i) => (
+                      <tr key={i}>
+                        <td className="border p-1">
+                          <Input
+                            value={row.category}
+                            onChange={(e) =>
+                              updateBudget(i, "category", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.description}
+                            onChange={(e) =>
+                              updateBudget(i, "description", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.unit}
+                            onChange={(e) =>
+                              updateBudget(i, "unit", e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.quantity}
+                            onChange={(e) =>
+                              updateBudget(i, "quantity", +e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            type="number"
+                            value={row.cost}
+                            onChange={(e) =>
+                              updateBudget(i, "cost", +e.target.value)
+                            }
+                          />
+                        </td>
+                        <td className="border p-1">
+                          <Input
+                            value={row.note}
+                            onChange={(e) =>
+                              updateBudget(i, "note", e.target.value)
+                            }
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <Button
+                  className="mt-2"
+                  onClick={() =>
+                    setBudgetRows([
+                      ...budgetRows,
+                      {
+                        category: "",
+                        description: "",
+                        unit: "",
+                        quantity: 1,
+                        cost: 0,
+                        note: "",
+                      },
+                    ])
+                  }
+                >
+                  + Thêm dòng ngân sách
+                </Button>
+              </Card>
 
               {/* Chi phí đối tác */}
               <Card className="p-4">
@@ -2125,24 +2275,25 @@ export default function EventPlansPage() {
 
               {/* Đặt cọc */}
               <Card className="p-4">
-                <h3 className="font-semibold mb-2">Kế hoạch đặt cọc</h3>
+                <h3 className="font-semibold mb-2">Kế hoạch thanh toán (Theo giai đoạn)</h3>
                 <table className="w-full border text-sm">
                   <thead className="bg-gray-100">
                     <tr>
-                      <th className="border p-1">Mô tả</th>
+                      <th className="border p-1">Mô tả (Đợt 1, 2, 3...)</th>
                       <th className="border p-1">Số tiền</th>
                       <th className="border p-1">Hạn thanh toán</th>
                       <th className="border p-1">Ghi chú</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {deposits.map((row, i) => (
+                    {paymentPlan.map((row, i) => (
                       <tr key={i}>
                         <td className="border p-1">
                           <Input
+                            placeholder="Ví dụ: Đợt 1 - Cọc 30%"
                             value={row.description}
                             onChange={(e) =>
-                              updateDeposit(i, "description", e.target.value)
+                              updatePaymentPlan(i, "description", e.target.value)
                             }
                           />
                         </td>
@@ -2151,7 +2302,7 @@ export default function EventPlansPage() {
                             type="number"
                             value={row.amount}
                             onChange={(e) =>
-                              updateDeposit(i, "amount", +e.target.value)
+                              updatePaymentPlan(i, "amount", +e.target.value)
                             }
                           />
                         </td>
@@ -2160,7 +2311,7 @@ export default function EventPlansPage() {
                             type="date"
                             value={row.dueDate}
                             onChange={(e) =>
-                              updateDeposit(i, "dueDate", e.target.value)
+                              updatePaymentPlan(i, "dueDate", e.target.value)
                             }
                           />
                         </td>
@@ -2168,7 +2319,7 @@ export default function EventPlansPage() {
                           <Input
                             value={row.note}
                             onChange={(e) =>
-                              updateDeposit(i, "note", e.target.value)
+                              updatePaymentPlan(i, "note", e.target.value)
                             }
                           />
                         </td>
@@ -2179,8 +2330,8 @@ export default function EventPlansPage() {
                 <Button
                   className="mt-2"
                   onClick={() =>
-                    setDeposits([
-                      ...deposits,
+                    setPaymentPlan([
+                      ...paymentPlan,
                       {
                         description: "",
                         amount: 0,
@@ -2191,7 +2342,7 @@ export default function EventPlansPage() {
                     ])
                   }
                 >
-                  + Thêm đợt đặt cọc
+                  + Thêm đợt thanh toán
                 </Button>
               </Card>
 
@@ -2200,6 +2351,13 @@ export default function EventPlansPage() {
                 <h3 className="font-semibold mb-2">Tổng hợp chi phí</h3>
                 <div className="space-y-1">
                   <p>
+                      <strong>Dự trù ngân sách:</strong>{" "}
+                      {budgetRows
+                        .reduce((sum, b) => sum + ((b.cost || 0) * (b.quantity || 1)), 0)
+                        .toLocaleString()}{" "}
+                      ₫
+                  </p>
+                  <p>
                     <strong>Tổng chi phí đối tác:</strong>{" "}
                     {partnerCosts
                       .reduce((sum, p) => sum + (p.amount || 0), 0)
@@ -2207,657 +2365,34 @@ export default function EventPlansPage() {
                     ₫
                   </p>
                   <p>
-                    <strong>Tổng đặt cọc:</strong>{" "}
-                    {deposits
+                    <strong>Tổng chi phí dự kiến (Ngân sách + Đối tác):</strong>{" "}
+                    {(
+                      budgetRows.reduce((sum, b) => sum + ((b.cost || 0) * (b.quantity || 1)), 0) +
+                      partnerCosts.reduce((sum, p) => sum + (p.amount || 0), 0)
+                    ).toLocaleString()}{" "}
+                    ₫
+                  </p>
+                  <p>
+                    <strong>Tổng thanh toán dự kiến:</strong>{" "}
+                    {paymentPlan
                       .reduce((sum, d) => sum + (d.amount || 0), 0)
                       .toLocaleString()}{" "}
                     ₫
                   </p>
                   <p className="text-lg font-bold text-blue-700">
-                    <strong>Còn lại:</strong>{" "}
+                    <strong>Còn lại (Chưa lên kế hoạch):</strong>{" "}
                     {(
+                      budgetRows.reduce((sum, b) => sum + ((b.cost || 0) * (b.quantity || 1)), 0) +
                       partnerCosts.reduce(
                         (sum, p) => sum + (p.amount || 0),
                         0
-                      ) - deposits.reduce((sum, d) => sum + (d.amount || 0), 0)
+                      ) - paymentPlan.reduce((sum, d) => sum + (d.amount || 0), 0)
                     ).toLocaleString()}{" "}
                     ₫
                   </p>
                 </div>
               </Card>
-            </div>
-          )}
-          {/* STEP 5 - CHUẨN BỊ CHI TIẾT */}
-          {step === 5 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">
-                5. Chuẩn bị chi tiết (Pre-event)
-              </h2>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-2">Checklist chuẩn bị</h3>
-
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border p-1">Hạng mục</th>
-                      <th className="border p-1">Mô tả</th>
-                      <th className="border p-1">Phụ trách</th>
-                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {prepChecklist.map((row, i) => (
-                      <tr key={i}>
-                        <td className="border p-1">
-                          <Input
-                            value={row.category}
-                            onChange={(e) =>
-                              updateChecklist(i, "category", e.target.value)
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updateChecklist(i, "description", e.target.value)
-                            }
-                            placeholder="Mô tả công việc..."
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          {customStep4Owner[i] ? (
-                            <Input
-                              value={row.owner}
-                              onChange={(e) =>
-                                updateChecklist(i, "owner", e.target.value)
-                              }
-                              onBlur={() =>
-                                setCustomStep4Owner((prev) => ({
-                                  ...prev,
-                                  [i]: false,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <StaffSelect
-                              value={row.owner}
-                              onChange={(v) => {
-                                if (v === "__custom__") {
-                                  setCustomStep4Owner((prev) => ({
-                                    ...prev,
-                                    [i]: true,
-                                  }));
-                                  updateChecklist(i, "owner", "");
-                                } else {
-                                  updateChecklist(i, "owner", v);
-                                }
-                              }}
-                            />
-                          )}
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            type="datetime-local"
-                            value={row.deadline}
-                            onChange={(e) =>
-                              updateChecklist(i, "deadline", e.target.value)
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <Button
-                  className="mt-2"
-                  onClick={() =>
-                    setPrepChecklist([
-                      ...prepChecklist,
-                      {
-                        category: "",
-                        description: "",
-                        owner: "",
-                        deadline: "",
-                      },
-                    ])
-                  }
-                >
-                  + Thêm dòng
-                </Button>
-              </Card>
-            </div>
-          )}
-          {/* STEP 6 - TRUYỀN THÔNG & MARKETING */}
-          {step === 6 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">
-                6. Truyền thông & Marketing
-              </h2>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-2">Checklist Marketing</h3>
-
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border p-1">Hạng mục</th>
-                      <th className="border p-1">Mô tả</th>
-                      <th className="border p-1">Phụ trách</th>
-                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {marketingChecklist.map((row, i) => (
-                      <tr key={i}>
-                        <td className="border p-1">
-                          <Input
-                            value={row.category}
-                            onChange={(e) =>
-                              updateMarketingChecklist(
-                                i,
-                                "category",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updateMarketingChecklist(
-                                i,
-                                "description",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          {customStep5Owner[i] ? (
-                            <Input
-                              value={row.owner}
-                              onChange={(e) =>
-                                updateMarketingChecklist(
-                                  i,
-                                  "owner",
-                                  e.target.value
-                                )
-                              }
-                              onBlur={() =>
-                                setCustomStep5Owner((prev) => ({
-                                  ...prev,
-                                  [i]: false,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <StaffSelect
-                              value={row.owner}
-                              onChange={(v) => {
-                                if (v === "__custom__") {
-                                  setCustomStep5Owner((prev) => ({
-                                    ...prev,
-                                    [i]: true,
-                                  }));
-                                  updateMarketingChecklist(i, "owner", "");
-                                } else {
-                                  updateMarketingChecklist(i, "owner", v);
-                                }
-                              }}
-                            />
-                          )}
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            type="datetime-local"
-                            value={row.deadline}
-                            onChange={(e) =>
-                              updateMarketingChecklist(
-                                i,
-                                "deadline",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <Button
-                  className="mt-2"
-                  onClick={() =>
-                    setMarketingChecklist([
-                      ...marketingChecklist,
-                      {
-                        category: "",
-                        description: "",
-                        owner: "",
-                        deadline: "",
-                      },
-                    ])
-                  }
-                >
-                  + Thêm dòng
-                </Button>
-              </Card>
-            </div>
-          )}
-          {/* STEP 7 - TRIỂN KHAI NGÀY SỰ KIỆN */}
-          {step === 7 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">
-                7. Triển khai ngày sự kiện (Event Day)
-              </h2>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-2">Checklist ngày diễn ra</h3>
-
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border p-1">Hạng mục</th>
-                      <th className="border p-1">Mô tả</th>
-                      <th className="border p-1">Phụ trách</th>
-                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {eventDayChecklist.map((row, i) => (
-                      <tr key={i}>
-                        <td className="border p-1">
-                          <Input
-                            value={row.category}
-                            onChange={(e) =>
-                              updateEventDayChecklist(
-                                i,
-                                "category",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updateEventDayChecklist(
-                                i,
-                                "description",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          {customStep6Owner[i] ? (
-                            <Input
-                              value={row.owner}
-                              onChange={(e) =>
-                                updateEventDayChecklist(
-                                  i,
-                                  "owner",
-                                  e.target.value
-                                )
-                              }
-                              onBlur={() =>
-                                setCustomStep6Owner((prev) => ({
-                                  ...prev,
-                                  [i]: false,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <StaffSelect
-                              value={row.owner}
-                              onChange={(v) => {
-                                if (v === "__custom__") {
-                                  setCustomStep6Owner((prev) => ({
-                                    ...prev,
-                                    [i]: true,
-                                  }));
-                                  updateEventDayChecklist(i, "owner", "");
-                                } else {
-                                  updateEventDayChecklist(i, "owner", v);
-                                }
-                              }}
-                            />
-                          )}
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            type="datetime-local"
-                            value={row.deadline}
-                            onChange={(e) =>
-                              updateEventDayChecklist(
-                                i,
-                                "deadline",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <Button
-                  className="mt-2"
-                  onClick={() =>
-                    setEventDayChecklist([
-                      ...eventDayChecklist,
-                      {
-                        category: "",
-                        description: "",
-                        owner: "",
-                        deadline: "",
-                      },
-                    ])
-                  }
-                >
-                  + Thêm dòng
-                </Button>
-              </Card>
-            </div>
-          )}
-          {/* STEP 8 - HẬU SỰ KIỆN */}
-          {step === 8 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">
-                8. Hậu sự kiện (Post-event)
-              </h2>
-
-              <Card className="p-4">
-                <h3 className="font-semibold mb-2">Checklist sau sự kiện</h3>
-
-                <table className="w-full border text-sm">
-                  <thead className="bg-gray-100">
-                    <tr>
-                      <th className="border p-1">Hạng mục</th>
-                      <th className="border p-1">Mô tả</th>
-                      <th className="border p-1">Phụ trách</th>
-                      <th className="border p-1">Deadline (Ngày & Giờ)</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {postEventRows.map((row, i) => (
-                      <tr key={i}>
-                        <td className="border p-1">
-                          <Input
-                            value={row.category}
-                            onChange={(e) =>
-                              updatePostEvent(i, "category", e.target.value)
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            value={row.description}
-                            onChange={(e) =>
-                              updatePostEvent(i, "description", e.target.value)
-                            }
-                          />
-                        </td>
-
-                        <td className="border p-1">
-                          {customStep7Owner[i] ? (
-                            <Input
-                              value={row.owner}
-                              onChange={(e) =>
-                                updatePostEvent(i, "owner", e.target.value)
-                              }
-                              onBlur={() =>
-                                setCustomStep7Owner((prev) => ({
-                                  ...prev,
-                                  [i]: false,
-                                }))
-                              }
-                            />
-                          ) : (
-                            <StaffSelect
-                              value={row.owner}
-                              onChange={(v) => {
-                                if (v === "__custom__") {
-                                  setCustomStep7Owner((prev) => ({
-                                    ...prev,
-                                    [i]: true,
-                                  }));
-                                  updatePostEvent(i, "owner", "");
-                                } else {
-                                  updatePostEvent(i, "owner", v);
-                                }
-                              }}
-                            />
-                          )}
-                        </td>
-
-                        <td className="border p-1">
-                          <Input
-                            type="datetime-local"
-                            value={row.deadline}
-                            onChange={(e) =>
-                              updatePostEvent(i, "deadline", e.target.value)
-                            }
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                <Button
-                  className="mt-2"
-                  onClick={() =>
-                    setPostEventRows([
-                      ...postEventRows,
-                      {
-                        category: "",
-                        description: "",
-                        owner: "",
-                        deadline: "",
-                      },
-                    ])
-                  }
-                >
-                  + Thêm dòng
-                </Button>
-              </Card>
-            </div>
-          )}
-          {/* STEP 9 - KẾ HOẠCH BÁN VÉ (chỉ cho Sự kiện đại chúng) */}
-          {step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng" && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold">
-                9. Kế hoạch bán vé
-              </h2>
-
-              {bookingInfo && (
-                <Card className="p-4 bg-blue-50">
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    🎫 Thông tin vé từ booking
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {bookingInfo.tickets?.map((ticket, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-white p-2 rounded border"
-                      >
-                        <p className="text-xs text-gray-600">
-                          {ticket.type}
-                        </p>
-                        <p className="font-bold">{ticket.quantity} vé</p>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
-
-              {/* Thời gian mở bán */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">Thời gian bán vé</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Ngày mở bán</Label>
-                    <Input
-                      type="datetime-local"
-                      value={ticketSaleStart}
-                      onChange={(e) => setTicketSaleStart(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label>Ngày đóng bán</Label>
-                    <Input
-                      type="datetime-local"
-                      value={ticketSaleEnd}
-                      onChange={(e) => setTicketSaleEnd(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </Card>
-
-              {/* Bảng giá chi tiết */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">
-                  Bảng giá chi tiết cho từng loại vé
-                </h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  Phân loại vé theo mức giá và timeline
-                </p>
-
-                <div className="space-y-4">
-                  {ticketSalePricing.map((ticket, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-gray-50 p-4 rounded-lg border space-y-3"
-                    >
-                      <div className="flex items-center justify-between border-b pb-2">
-                        <div>
-                          <p className="text-sm text-gray-600">Loại vé</p>
-                          <p className="font-bold text-lg">{ticket.type}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm text-gray-600">Số lượng</p>
-                          <p className="font-semibold text-blue-600">
-                            {ticket.quantity} vé
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                          <Label className="text-xs">
-                            💰 Giá Early Bird (VNĐ)
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="Giá sớm"
-                            value={ticket.earlyBirdPrice || ""}
-                            onChange={(e) =>
-                              updateTicketSalePricing(
-                                idx,
-                                "earlyBirdPrice",
-                                +e.target.value
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">
-                            💵 Giá thường (VNĐ)
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="Giá thường"
-                            value={ticket.regularPrice || ""}
-                            onChange={(e) =>
-                              updateTicketSalePricing(
-                                idx,
-                                "regularPrice",
-                                +e.target.value
-                              )
-                            }
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="text-xs">
-                            💸 Giá muộn (VNĐ)
-                          </Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            placeholder="Giá muộn"
-                            value={ticket.latePrice || ""}
-                            onChange={(e) =>
-                              updateTicketSalePricing(
-                                idx,
-                                "latePrice",
-                                +e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-
-              {/* Chính sách và giới hạn */}
-              <Card className="p-4">
-                <h3 className="font-semibold mb-3">
-                  Chính sách và giới hạn
-                </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <Label>Giới hạn số vé mỗi người</Label>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="VD: 5 vé/người"
-                      value={ticketLimitPerPerson || ""}
-                      onChange={(e) =>
-                        setTicketLimitPerPerson(+e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label>Chính sách hoàn/đổi vé</Label>
-                    <Textarea
-                      placeholder="VD: Hoàn vé 100% trước 7 ngày, 50% trước 3 ngày, không hoàn sau đó..."
-                      value={refundPolicy}
-                      onChange={(e) => setRefundPolicy(e.target.value)}
-                      rows={4}
-                    />
-                  </div>
-                </div>
-              </Card>
-            </div>
+            </fieldset>
           )}
           {/* NAVIGATION BUTTONS */}
           <div className="flex justify-between mt-6">
@@ -2865,10 +2400,16 @@ export default function EventPlansPage() {
               ← Quay lại
             </Button>
 
-            {step === 3 && !editingPlan?.approvals?.manager?.approved && (
+            {step === 4 && !["manager_approved_demo", "manager_approved", "pending_manager", "customer_approved_demo", "customer_approved"].includes(editingPlan?.status) && (
               <div className="flex gap-2">
                 <Button variant="outline" onClick={handleSaveStep123}>
                   💾 Lưu nháp
+                </Button>
+                <Button
+                  className="bg-purple-600"
+                  onClick={handleSaveAndContinueToDetails}
+                >
+                  📋 Lưu & Tiếp tục chi tiết
                 </Button>
                 <Button
                   className="bg-blue-600"
@@ -2879,29 +2420,36 @@ export default function EventPlansPage() {
               </div>
             )}
 
-            {/* Nút Tiếp tục - kiểm tra loại sự kiện */}
-            {step !== 3 && (
-              <>
-                {/* Nếu là Sự kiện đại chúng: hiển thị nút đến step 9 */}
-                {bookingInfo?.event_type === "Sự kiện đại chúng" && step < 9 && (
-                  <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
-                )}
-                
-                {/* Nếu không phải Sự kiện đại chúng: dừng ở step 8 */}
-                {bookingInfo?.event_type !== "Sự kiện đại chúng" && step < 8 && (
-                  <Button onClick={() => setStep(step + 1)}>Tiếp tục →</Button>
-                )}
-              </>
+            {step === 4 && editingPlan?.status === "manager_approved_demo" && (
+                <div className="flex gap-2">
+                    <Button
+                        className="bg-orange-600 hover:bg-orange-700"
+                        onClick={handleCustomerApproval}
+                    >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Khách hàng đã duyệt
+                    </Button>
+                    <Button 
+                        className="bg-green-600"
+                        onClick={() => router.push(`/dashboard/event-plan-details?booking_id=${selectedBookingId}`)}
+                    >
+                        ➡️ Đi tới Kế hoạch chi tiết
+                    </Button>
+                </div>
             )}
 
-            {/* Nút Hoàn tất - step 9 cho Sự kiện đại chúng, step 8 cho các loại khác */}
-            {((step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
-              (step === 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
-              <Button
-                className="bg-green-600 text-white"
-                onClick={handleCompletePlan}
-              >
-                ✅ Hoàn tất kế hoạch
+             {step === 4 && editingPlan?.status === "customer_approved_demo" && (
+                <Button 
+                    className="bg-green-600"
+                    onClick={() => router.push(`/dashboard/event-plan-details?booking_id=${selectedBookingId}`)}
+                >
+                    ➡️ Đi tới Kế hoạch chi tiết
+                </Button>
+             )}
+
+            {step < 4 && (
+              <Button onClick={() => setStep(step + 1)}>
+                Tiếp tục →
               </Button>
             )}
           </div>
@@ -2980,14 +2528,7 @@ export default function EventPlansPage() {
                     {!plan ? (
                       <Button
                         className="w-full"
-                        onClick={async () => {
-                          setEditingPlan(null);
-                          setSelectedBookingId(b._id);
-                          await fetchBookingDetail(b._id);
-                          setStep(1);
-                          // Show template dialog for new plans
-                          setShowTemplateDialog(true);
-                        }}
+                        onClick={() => handleOpenPlanDialog(b, "create")}
                       >
                         📋 Lên kế hoạch sự kiện
                       </Button>
@@ -2995,38 +2536,7 @@ export default function EventPlansPage() {
                       <Button
                         className="w-full"
                         variant="outline"
-                        onClick={async () => {
-                          const res = await fetch(
-                            `/api/event-plans?booking_id=${b._id}`
-                          );
-                          const json = await res.json();
-
-                          if (json.success && json.data) {
-                            setEditingPlan(json.data);
-                            setSelectedBookingId(b._id);
-                            await fetchBookingDetail(b._id);
-
-                            // Điều hướng đến bước phù hợp
-                            if (
-                              status === "draft" ||
-                              status === "pending_manager"
-                            ) {
-                              setStep(1);
-                              setOpen(true);
-                            } else if (status === "customer_approved") {
-                              setStep(4);
-                              setOpen(true);
-                            } else if (status === "customer_approved_demo") {
-                              setStep(4); // Start from step 4 (Kế hoạch chi phí)
-                              setShowTemplateDialog(true); // Show confirmation for sample data
-                            } else {
-                              setStep(1);
-                              setOpen(true);
-                            }
-                          } else {
-                            toast.error("❌ Không thể tải kế hoạch!");
-                          }
-                        }}
+                        onClick={() => handleOpenPlanDialog(b, "edit", plan)}
                       >
                         {status === "customer_approved_demo" 
                           ? "📝 Lên kế hoạch chi tiết" 

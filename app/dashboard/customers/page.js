@@ -225,13 +225,41 @@ export default function CustomersPage() {
             }
           }
 
-          // Payment schedule from Step 3.5
-          const paymentSchedule = ep?.step3_5?.deposits?.map(d => ({
-              description: d.description,
-              amount: d.amount,
-              deadline: d.dueDate,
-              status: d.status
+          // Calculate total cost from Step 3.5 (Step 4 UI) if available, otherwise Step 2 Budget
+          const totalCost = ep?.step3_5?.totalEstimatedCost || ep?.step2?.budget?.reduce(
+            (sum, item) => sum + (item.cost * item.quantity), 
+            0
+          ) || 0;
+
+          // Payment schedule from Step 3.5 (Step 4 UI) paymentPlan
+          let paymentSchedule = ep?.step3_5?.paymentPlan?.map(p => ({
+            description: p.description,
+            amount: p.amount,
+            deadline: p.dueDate // Map dueDate to deadline
           })) || [];
+
+          // Fallback: If no payment schedule exists, generate a default one
+          if (paymentSchedule.length === 0 && totalCost > 0) {
+              const auditDate = new Date();
+              const eventDate = new Date(b.event_date);
+              
+              // Đợt 1: Đặt cọc 50% ngay khi ký
+              paymentSchedule.push({
+                  description: "Đặt cọc lần 1 (50% giá trị hợp đồng)",
+                  amount: totalCost * 0.5,
+                  deadline: auditDate.toISOString().split('T')[0]
+              });
+
+              // Đợt 2: Thanh toán 50% còn lại trước sự kiện 1 ngày
+              const finalPaymentDate = new Date(eventDate);
+              finalPaymentDate.setDate(finalPaymentDate.getDate() - 1);
+              
+              paymentSchedule.push({
+                  description: "Thanh toán lần 2 (50% còn lại)",
+                  amount: totalCost * 0.5,
+                  deadline: finalPaymentDate.toISOString().split('T')[0]
+              });
+          }
 
           setContractData({
             contract_number: `${new Date().getMonth() + 1}/${new Date().getFullYear()}/HĐ-SK`,
@@ -259,7 +287,7 @@ export default function CustomersPage() {
               scale: `${b.scale || 0} khách`,
             },
             work_items: workItemsText,
-            total_cost: ep?.step3_5?.totalEstimatedCost || 0,
+            total_cost: totalCost,
             payment_schedule: paymentSchedule,
             party_a_responsibilities: "Thanh toán đúng hạn và cung cấp thông tin cần thiết.",
             party_b_responsibilities: "Đảm bảo tổ chức sự kiện đúng kế hoạch và chất lượng cam kết.",
@@ -411,7 +439,7 @@ export default function CustomersPage() {
                   </Badge>
                 </div>
 
-                {b.event_plan_status === "customer_approved" && (
+                {b.event_plan_status === "customer_approved_demo" && (
                   <Button
                     variant="default"
                     className="mt-3 w-full bg-blue-600 hover:bg-blue-700"
@@ -620,9 +648,87 @@ export default function CustomersPage() {
                       <h3 className="font-bold text-lg mb-2">3. HẠNG MỤC CÔNG VIỆC BÊN B CUNG CẤP</h3>
                       
                       {/* Hiển thị thông tin từ Step 2 & Step 3 dưới dạng bảng */}
+                      {/* Hiển thị thông tin từ Step 1, 2, 3, 4 dưới dạng bảng */}
                       {selectedEventPlan && (
                         <div className="mb-4 space-y-4">
-                            {/* Concept */}
+                            {/* Step 1: Mục tiêu & Đối tượng */}
+                            {selectedEventPlan.step1 && (
+                                <div className="border rounded p-3 bg-gray-50">
+                                    <h4 className="font-bold mb-2 text-blue-600">Mục Tiêu & Đối Tượng (Step 1)</h4>
+                                    <table className="w-full text-sm border-collapse border border-gray-300">
+                                        <tbody>
+                                            <tr>
+                                                <td className="border border-gray-300 p-2 font-semibold w-1/4">Mục tiêu</td>
+                                                <td className="border border-gray-300 p-2">{selectedEventPlan.step1.goal}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="border border-gray-300 p-2 font-semibold">Đối tượng</td>
+                                                <td className="border border-gray-300 p-2">{selectedEventPlan.step1.audience}</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="border border-gray-300 p-2 font-semibold">Loại hình</td>
+                                                <td className="border border-gray-300 p-2">{selectedEventPlan.step1.eventCategory}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                             {/* Step 2: Timeline Events */}
+                             {selectedEventPlan.step2?.eventTimeline?.length > 0 && (
+                                <div className="border rounded p-3 bg-gray-50">
+                                    <h4 className="font-bold mb-2 text-blue-600">Timeline Sự Kiện (Step 2)</h4>
+                                    <table className="w-full text-sm border-collapse border border-gray-300">
+                                        <thead>
+                                            <tr className="bg-gray-200">
+                                                <th className="border border-gray-300 p-2 text-left w-1/4">Thời gian</th>
+                                                <th className="border border-gray-300 p-2 text-left">Hoạt động</th>
+                                                <th className="border border-gray-300 p-2 text-left">Phụ trách</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedEventPlan.step2.eventTimeline.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="border border-gray-300 p-2">
+                                                        {item.time ? new Date(item.time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'}) : ''}
+                                                    </td>
+                                                    <td className="border border-gray-300 p-2">{item.activity}</td>
+                                                    <td className="border border-gray-300 p-2">{item.manager?.name}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                             {/* Step 2: Prep Timeline */}
+                             {selectedEventPlan.step2?.prepTimeline?.length > 0 && (
+                                <div className="border rounded p-3 bg-gray-50">
+                                    <h4 className="font-bold mb-2 text-blue-600">Timeline Chuẩn Bị (Step 2)</h4>
+                                    <table className="w-full text-sm border-collapse border border-gray-300">
+                                        <thead>
+                                            <tr className="bg-gray-200">
+                                                <th className="border border-gray-300 p-2 text-left w-1/4">Thời gian</th>
+                                                <th className="border border-gray-300 p-2 text-left">Nhiệm vụ</th>
+                                                <th className="border border-gray-300 p-2 text-left">Phụ trách</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {selectedEventPlan.step2.prepTimeline.map((item, idx) => (
+                                                <tr key={idx}>
+                                                    <td className="border border-gray-300 p-2">
+                                                        {item.time ? new Date(item.time).toLocaleDateString('vi-VN') : ''}
+                                                    </td>
+                                                    <td className="border border-gray-300 p-2">{item.task}</td>
+                                                    <td className="border border-gray-300 p-2">{item.manager?.name}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {/* Step 3: Concept */}
                             {selectedEventPlan.step3 && (
                                 <div className="border rounded p-3 bg-gray-50">
                                     <h4 className="font-bold mb-2 text-blue-600">Ý Tưởng & Chủ Đề (Step 3)</h4>
@@ -724,30 +830,33 @@ export default function CustomersPage() {
                                 </div>
                             )}
 
-                             {/* Prep Timeline (Step 2) */}
-                             {selectedEventPlan.step2?.prepTimeline?.length > 0 && (
+                            {/* Step 4: Cost & Payment Plan */}
+                            {selectedEventPlan.step3_5 && (
                                 <div className="border rounded p-3 bg-gray-50">
-                                    <h4 className="font-bold mb-2 text-blue-600">Timeline Chuẩn Bị (Step 2)</h4>
-                                    <table className="w-full text-sm border-collapse border border-gray-300">
-                                        <thead>
-                                            <tr className="bg-gray-200">
-                                                <th className="border border-gray-300 p-2 text-left w-1/4">Thời gian</th>
-                                                <th className="border border-gray-300 p-2 text-left">Nhiệm vụ</th>
-                                                <th className="border border-gray-300 p-2 text-left">Phụ trách</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {selectedEventPlan.step2.prepTimeline.map((item, idx) => (
-                                                <tr key={idx}>
-                                                    <td className="border border-gray-300 p-2">
-                                                        {item.time ? new Date(item.time).toLocaleDateString('vi-VN') : ''}
-                                                    </td>
-                                                    <td className="border border-gray-300 p-2">{item.task}</td>
-                                                    <td className="border border-gray-300 p-2">{item.manager?.name}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                    <h4 className="font-bold mb-2 text-blue-600">Chi Phí & Thanh Toán (Step 4)</h4>
+                                    
+                                    {/* Partner Costs */}
+                                    {selectedEventPlan.step3_5.partnerCosts?.length > 0 && (
+                                        <div className="mb-3">
+                                            <p className="font-semibold text-xs mb-1">Chi phí đối tác:</p>
+                                            <ul className="list-disc pl-5">
+                                                {selectedEventPlan.step3_5.partnerCosts.map((p, i) => (
+                                                    <li key={i}>{p.partnerName} ({p.description}): {p.amount?.toLocaleString()} đ</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-2 gap-4 mt-2 border-t pt-2">
+                                        <div>
+                                            <p className="font-bold">Tổng chi phí dự kiến:</p>
+                                            <p className="text-lg text-blue-700">{selectedEventPlan.step3_5.totalEstimatedCost?.toLocaleString()} VNĐ</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-bold">Tổng thanh toán (theo kế hoạch):</p>
+                                            <p className="text-lg text-green-700">{selectedEventPlan.step3_5.totalPayment?.toLocaleString()} VNĐ</p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/api/common/db";
 import { handleCORS } from "@/app/api/common/cors";
 import { signAccessToken, verifyPassword } from "@/app/api/common/auth";
-import User from "@/models/User"; // 👉 Thêm dòng này
+import User from "@/models/User";
+import Staff from "@/models/Staff";
+import Department from "@/models/Department";
 
 export async function POST(request) {
   try {
-    await connectDB(); // ✅ chỉ cần kết nối, không cần gán db
+    await connectDB();
 
     const { email, password } = await request.json();
 
@@ -19,7 +21,7 @@ export async function POST(request) {
       );
     }
 
-    // ✅ Dùng model Mongoose thay vì db.collection
+    // Tìm user
     const user = await User.findOne({ email });
     if (!user || !(await verifyPassword(password, user.password_hash))) {
       return handleCORS(
@@ -28,6 +30,15 @@ export async function POST(request) {
           { status: 401 }
         )
       );
+    }
+
+    // Lấy thông tin department nếu user là staff/employee
+    let departmentName = null;
+    if (user.role === "staff" || user.role === "employee") {
+      const staff = await Staff.findOne({ user_id: user._id }).populate("department_id");
+      if (staff && staff.department_id) {
+        departmentName = staff.department_id.name;
+      }
     }
 
     const accessToken = signAccessToken({
@@ -46,6 +57,7 @@ export async function POST(request) {
         role: user.role,
         phone: user.phone,
         status: user.status,
+        department: departmentName,
       },
     });
 

@@ -56,6 +56,10 @@ const EventContractSchema = new mongoose.Schema(
         amount: Number,
         deadline: Date,
         status: String,
+        payment_code: String,
+        payment_link: String,
+        qr_code: String,
+        paid_at: Date
       },
     ],
 
@@ -74,6 +78,12 @@ const EventContractSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Prevent Mongoose OverwriteModelError in development by deleting the model if it exists
+// This ensures that schema changes are applied during hot reloads
+if (process.env.NODE_ENV !== 'production') {
+  delete mongoose.models.EventContract;
+}
 
 export default mongoose.models.EventContract ||
   mongoose.model("EventContract", EventContractSchema);

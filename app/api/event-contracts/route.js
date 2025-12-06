@@ -3,6 +3,8 @@ import { connectDB } from "@/app/api/common/db";
 import EventContract from "@/models/EventContract";
 import EventPlan from "@/models/EventPlan";
 import Booking from "@/models/Booking";
+import { sendContractEmail } from "@/lib/email";
+import { createPaymentData } from "@/lib/sepay";
 
 // GET: Lấy hợp đồng theo booking_id
 export async function GET(request) {
@@ -65,6 +67,36 @@ export async function POST(request) {
     await connectDB();
     const data = await request.json();
 
+    // Generate payment codes/links if missing
+    if (data.payment_schedule && Array.isArray(data.payment_schedule)) {
+        console.log(`Processing payment schedule for contract ${data.contract_number}, items: ${data.payment_schedule.length}`);
+        
+        data.payment_schedule = data.payment_schedule.map((item, index) => {
+            // Check if payment info is incomplete (missing code or QR)
+            if (!item.payment_code || !item.qr_code) {
+                console.log(`Generating payment data for item ${index}`);
+                
+                // Ensure contract_number is available for code generation
+                if (!data.contract_number) {
+                    console.warn(`Missing contract_number for item ${index}, using 'DRAFT'`);
+                }
+                
+                const contractForGen = { 
+                    ...data, 
+                    contract_number: data.contract_number || 'DRAFT',
+                    payment_schedule: data.payment_schedule 
+                };
+                
+                const paymentData = createPaymentData(contractForGen, index);
+                return {
+                    ...item,
+                    ...paymentData
+                };
+            }
+            return item;
+        });
+    }
+
     // Kiểm tra xem đã có hợp đồng chưa
     let contract = await EventContract.findOne({ booking_id: data.booking_id });
 
@@ -76,10 +108,20 @@ export async function POST(request) {
       contract = await EventContract.create(data);
     }
 
+    // Gửi email cho khách hàng
+    if (contract && contract.party_a && contract.party_a.email) {
+      // Chạy bất đồng bộ, không đợi email gửi xong mới phản hồi client để tránh delay
+      sendContractEmail(contract, contract.party_a.email)
+        .then(res => {
+          if (!res.success) console.error("Failed to send contract email:", res.error);
+        })
+        .catch(err => console.error("Error invoking sendContractEmail:", err));
+    }
+
     return NextResponse.json({
       success: true,
       data: contract,
-      message: "Lưu hợp đồng thành công",
+      message: "Lưu hợp đồng thành công và đã gửi email cho khách hàng",
     });
   } catch (error) {
     console.error("Error saving contract:", error);

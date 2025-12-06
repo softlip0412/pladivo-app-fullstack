@@ -137,7 +137,7 @@ const EventPlanSchema = new mongoose.Schema(
         },
       ],
 
-      deposits: [
+      paymentPlan: [
         {
           description: String,
           amount: Number,
@@ -153,7 +153,7 @@ const EventPlanSchema = new mongoose.Schema(
       ],
 
       totalEstimatedCost: Number,
-      totalDeposit: Number,
+      totalPayment: Number,
       totalRemaining: Number,
     },
 

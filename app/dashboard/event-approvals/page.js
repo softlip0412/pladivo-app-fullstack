@@ -72,7 +72,7 @@ export default function EventApprovalPage() {
         return;
       }
     } else if (action === "reject") {
-      newStatus = "cancelled";
+      newStatus = "rejected";
     }
     
     try {
@@ -134,7 +134,6 @@ export default function EventApprovalPage() {
           </Card>
         ))}
       </div>
-
       {/* ========== DIALOG HIỂN THỊ CHI TIẾT 7 STEP ========== */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
@@ -142,6 +141,18 @@ export default function EventApprovalPage() {
             <DialogTitle>
               ✏️ Kế hoạch: {selectedPlan?.booking?.customer_name || "Không rõ khách hàng"}
             </DialogTitle>
+            <div className="mt-2">
+              {selectedPlan?.status === "pending_manager_demo" && (
+                <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                  Phê duyệt Giai đoạn 1 (Demo)
+                </Badge>
+              )}
+              {selectedPlan?.status === "pending_manager" && (
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                  Phê duyệt Giai đoạn 2 (Chi tiết)
+                </Badge>
+              )}
+            </div>
           </DialogHeader>
 
           {selectedPlan ? (
@@ -302,13 +313,110 @@ export default function EventApprovalPage() {
                 </Table>
               </section>
 
-              {/* STEP 4-7: checklist */}
+              {/* STEP 4: CHI PHÍ & THANH TOÁN */}
+              <section>
+                <h3 className="font-semibold text-lg">💰 Step 4: Kế hoạch Chi phí & Thanh toán</h3>
+                
+                {/* 4.1 Dự trù ngân sách (Budget) */}
+                <h4 className="font-medium mt-2">1. Dự trù ngân sách</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Danh mục</TableHead><TableHead>Mô tả</TableHead><TableHead>Số lượng</TableHead><TableHead>Chi phí</TableHead><TableHead>Ghi chú</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPlan.step2?.budget?.map((b, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{b.category}</TableCell>
+                        <TableCell>{b.description}</TableCell>
+                        <TableCell>{b.quantity}</TableCell>
+                        <TableCell>{b.cost?.toLocaleString()} đ</TableCell>
+                        <TableCell>{b.note}</TableCell>
+                      </TableRow>
+                    ))}
+                     <TableRow className="bg-gray-100 font-bold">
+                        <TableCell colSpan={3} className="text-right">Tổng ngân sách:</TableCell>
+                        <TableCell colSpan={2}>
+                            {selectedPlan.step2?.budget?.reduce((sum, item) => sum + ((item.cost || 0) * (item.quantity || 1)), 0).toLocaleString()} đ
+                        </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+
+                {/* 4.2 Chi phí đối tác */}
+                {selectedPlan.step3_5?.partnerCosts?.length > 0 && (
+                    <>
+                        <h4 className="font-medium mt-4">2. Chi phí đối tác</h4>
+                        <Table>
+                        <TableHeader>
+                            <TableRow>
+                            <TableHead>Đối tác</TableHead><TableHead>Mô tả</TableHead><TableHead>Chi phí</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {selectedPlan.step3_5.partnerCosts.map((p, i) => (
+                            <TableRow key={i}>
+                                <TableCell>{p.partnerName}</TableCell>
+                                <TableCell>{p.description}</TableCell>
+                                <TableCell>{p.amount?.toLocaleString()} đ</TableCell>
+                            </TableRow>
+                            ))}
+                        </TableBody>
+                        </Table>
+                    </>
+                )}
+
+                 {/* 4.3 Kế hoạch thanh toán */}
+                 <h4 className="font-medium mt-4">3. Kế hoạch thanh toán (Payment Plan)</h4>
+                 <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Mô tả</TableHead><TableHead>Số tiền</TableHead><TableHead>Hạn thanh toán</TableHead><TableHead>Ghi chú</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedPlan.step3_5?.paymentPlan?.map((p, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{p.description}</TableCell>
+                        <TableCell>{p.amount?.toLocaleString()} đ</TableCell>
+                        <TableCell>{formatDate(p.dueDate)}</TableCell>
+                        <TableCell>{p.note}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+
+                {/* 4.4 Tổng hợp */}
+                <div className="mt-4 grid grid-cols-3 gap-4 border-t pt-4">
+                    <div>
+                        <p className="font-semibold text-gray-600">Tổng chi phí dự kiến:</p>
+                        <p className="text-xl font-bold text-blue-600">
+                            {selectedPlan.step3_5?.totalEstimatedCost?.toLocaleString() || 0} đ
+                        </p>
+                    </div>
+                    <div>
+                        <p className="font-semibold text-gray-600">Tổng thanh toán dự kiến:</p>
+                        <p className="text-xl font-bold text-green-600">
+                            {selectedPlan.step3_5?.totalPayment?.toLocaleString() || 0} đ
+                        </p>
+                    </div>
+                     <div>
+                        <p className="font-semibold text-gray-600">Còn lại:</p>
+                        <p className="text-xl font-bold text-red-600">
+                            {selectedPlan.step3_5?.totalRemaining?.toLocaleString() || 0} đ
+                        </p>
+                    </div>
+                </div>
+              </section>
+
+              {/* STEP 5-8: checklist */}
               {["step4", "step5", "step6", "step7"].map((step, idx) => {
                 const stepTitles = [
-                  "📋 Step 4: Checklist Chuẩn bị",
-                  "📣 Step 5: Checklist Marketing",
-                  "🎤 Step 6: Checklist Ngày diễn ra",
-                  "✅ Step 7: Hậu sự kiện",
+                  "📋 Step 5: Checklist Chuẩn bị",
+                  "📣 Step 6: Checklist Marketing",
+                  "🎤 Step 7: Checklist Ngày diễn ra",
+                  "✅ Step 8: Hậu sự kiện",
                 ];
                 const field = Object.values(selectedPlan[step] || {})[0] || [];
                 return (

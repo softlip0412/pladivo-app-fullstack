@@ -76,13 +76,13 @@ export const eventTemplates = {
         { partnerId: "", partnerName: "Công ty sự kiện", description: "Âm thanh, ánh sáng, backdrop", amount: 25000000, note: "Bao gồm MC và kỹ thuật viên" },
         { partnerId: "", partnerName: "Công ty in ấn", description: "Tài liệu, standee, backdrop", amount: 15000000, note: "Hoàn thành trước 3 ngày" },
       ],
-      deposits: [
+      paymentPlan: [
         { description: "Đặt cọc venue 30%", amount: 19500000, dueDate: "2025-12-01", status: "pending", note: "Chuyển khoản sau khi ký HĐ" },
         { description: "Tạm ứng công ty sự kiện 50%", amount: 12500000, dueDate: "2025-12-10", status: "pending", note: "Để đặt thiết bị" },
         { description: "Thanh toán in ấn 100%", amount: 15000000, dueDate: "2025-12-15", status: "pending", note: "Trước khi in" },
       ],
       totalEstimatedCost: 105000000,
-      totalDeposit: 47000000,
+      totalPayment: 47000000,
       totalRemaining: 58000000,
     },
     step4: {
@@ -212,13 +212,13 @@ export const eventTemplates = {
         { partnerId: "", partnerName: "Ca sĩ & Ban nhạc", description: "Biểu diễn ca nhạc", amount: 30000000, note: "Thanh toán sau sự kiện" },
         { partnerId: "", partnerName: "Quà tặng & Giải thưởng", description: "Quà nhân viên + phần thưởng", amount: 160000000, note: "Chuẩn bị trước 5 ngày" },
       ],
-      deposits: [
+      paymentPlan: [
         { description: "Đặt cọc venue 40%", amount: 52000000, dueDate: "2025-12-05", status: "pending", note: "Để giữ chỗ" },
         { description: "Tạm ứng sự kiện 50%", amount: 21000000, dueDate: "2025-12-12", status: "pending", note: "Đặt thiết bị" },
         { description: "Đặt cọc ca sĩ 30%", amount: 9000000, dueDate: "2025-12-15", status: "pending", note: "Xác nhận lịch" },
       ],
       totalEstimatedCost: 362000000,
-      totalDeposit: 82000000,
+      totalPayment: 82000000,
       totalRemaining: 280000000,
     },
     step4: {
@@ -356,14 +356,14 @@ export const eventTemplates = {
         { partnerId: "", partnerName: "Công ty an ninh", description: "100 bảo vệ x 2 ngày", amount: 100000000, note: "Thanh toán sau sự kiện" },
         { partnerId: "", partnerName: "Agency Marketing", description: "Chiến dịch truyền thông", amount: 200000000, note: "Thanh toán theo giai đoạn" },
       ],
-      deposits: [
+      paymentPlan: [
         { description: "Đặt cọc sân vận động 50%", amount: 100000000, dueDate: "2025-12-15", status: "pending", note: "Để giữ chỗ" },
         { description: "Tạm ứng sản xuất 40%", amount: 208000000, dueDate: "2025-12-20", status: "pending", note: "Đặt thiết bị" },
         { description: "Đặt cọc nghệ sĩ 30%", amount: 150000000, dueDate: "2026-01-01", status: "pending", note: "Xác nhận lịch" },
         { description: "Tạm ứng marketing 50%", amount: 100000000, dueDate: "2025-12-10", status: "pending", note: "Chạy quảng cáo" },
       ],
       totalEstimatedCost: 1520000000,
-      totalDeposit: 558000000,
+      totalPayment: 558000000,
       totalRemaining: 962000000,
     },
     step4: {

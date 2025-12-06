@@ -15,35 +15,24 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
-
-import {
-  Home,
-  UserCircle,
-  UserCog,
-  Settings2,
-  ClipboardList,
-  CalendarRange,
-  Stamp,
-  Handshake,
-  FileSignature,
-  BadgeCheck,
-  Ticket,
-  TicketCheck,
-  ChartBar,
-  LogOut,
-  StickyNote,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
+import { ALL_MENU_ITEMS } from "@/config/navConfig";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
   const [user, setUser] = useState(null);
+  const [menuItems, setMenuItems] = useState([]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
     if (!savedUser) {
       router.push("/");
     } else {
-      setUser(JSON.parse(savedUser));
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      
+      // Hiển thị tất cả menu items (đã bỏ phân quyền UI)
+      setMenuItems(ALL_MENU_ITEMS);
     }
   }, [router]);
 
@@ -81,131 +70,19 @@ export default function DashboardLayout({ children }) {
             {/* Menu */}
             <SidebarGroup className="flex-1 overflow-y-auto">
               <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard">
-                      <Home className="mr-2" />
-                      <span>Trang chủ</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/blogs">
-                      <StickyNote className="mr-2" />
-                      <span>Blogs</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/users">
-                      <UserCircle className="mr-2" />
-                      <span>Người dùng</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/staffs">
-                      <UserCog className="mr-2" />
-                      <span>Nhân sự</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/services">
-                      <Settings2 className="mr-2" />
-                      <span>Dịch vụ</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/bookings">
-                      <ClipboardList className="mr-2" />
-                      <span>Đơn đặt</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/event-plans">
-                      <CalendarRange className="mr-2" />
-                      <span>Kế hoạch</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/event-approvals">
-                      <Stamp className="mr-2" />
-                      <span>Phê duyệt Kế hoạch</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/customers">
-                      <FileSignature className="mr-2" />
-                      <span>Khách Hàng & Hợp Đồng</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/partners">
-                      <Handshake className="mr-2" />
-                      <span>Đối tác</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/task-evaluation">
-                      <BadgeCheck className="mr-2" />
-                      <span>Đánh giá công việc</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/ticket-management">
-                      <Ticket className="mr-2" />
-                      <span>Quản lý bán vé</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/ticket-sales">
-                      <TicketCheck className="mr-2" />
-                      <span>Bán vé</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <Link href="/dashboard/ticket-reports">
-                      <ChartBar className="mr-2" />
-                      <span>Thống kê bán vé</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+                {menuItems.map((item) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton asChild>
+                        <Link href={item.path}>
+                          <IconComponent className="mr-2" />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
               </SidebarMenu>
             </SidebarGroup>
 
