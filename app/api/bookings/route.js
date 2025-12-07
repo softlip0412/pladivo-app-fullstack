@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/api/common/db";
 import Booking from "@/models/Booking";
 import EventPlan from "@/models/EventPlan";
+import EventContract from "@/models/EventContract";
 import { authenticateToken } from "@/app/api/common/auth";
 
 // ✅ GET: Lấy danh sách booking
@@ -38,6 +39,21 @@ export async function GET(request) {
 
     bookings.forEach((b) => {
       b.event_plan_status = eventPlanMap[b._id.toString()] || "not_created";
+    });
+
+    // Lấy danh sách EventContract tương ứng
+    const eventContracts = await EventContract.find({ booking_id: { $in: bookingIds } })
+      .select("booking_id status")
+      .lean();
+
+    // Map status vào booking
+    const eventContractMap = {};
+    eventContracts.forEach((ec) => {
+      eventContractMap[ec.booking_id.toString()] = ec.status;
+    });
+
+    bookings.forEach((b) => {
+      b.event_contract_status = eventContractMap[b._id.toString()] || "draft";
     });
 
     // Nhóm theo ngày

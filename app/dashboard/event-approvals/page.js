@@ -13,17 +13,43 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import { CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone } from "lucide-react";
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
-  return d.toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
+  return d.toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
+};
+
+const getStatusBadge = (status) => {
+  const config = {
+    draft: { label: "📝 Đang soạn", color: "bg-gray-100 text-gray-700", icon: Clock },
+    pending_manager: { label: "⏳ Chờ duyệt (Chi tiết)", color: "bg-yellow-100 text-yellow-700", icon: Clock },
+    pending_manager_demo: { label: "⏳ Chờ duyệt (Demo)", color: "bg-orange-100 text-orange-700", icon: Clock },
+    manager_approved: { label: "✅ QL đã duyệt (Chi tiết)", color: "bg-blue-100 text-blue-700", icon: CheckCircle },
+    manager_approved_demo: { label: "✅ QL đã duyệt (Demo)", color: "bg-blue-500 text-white", icon: CheckCircle },
+    pending_customer: { label: "⏳ Chờ khách (Chi tiết)", color: "bg-purple-100 text-purple-700", icon: Clock },
+    pending_customer_demo: { label: "⏳ Chờ khách (Demo)", color: "bg-purple-500 text-white", icon: Clock },
+    customer_approved: { label: "🎉 Khách đã chốt", color: "bg-green-100 text-green-700", icon: CheckCircle },
+    customer_approved_demo: { label: "🎉 Khách chốt Demo", color: "bg-green-500 text-white", icon: CheckCircle },
+    in_progress: { label: "🚀 Đang triển khai", color: "bg-indigo-100 text-indigo-700", icon: Calendar },
+    completed: { label: "🏁 Hoàn thành", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
+    cancelled: { label: "❌ Đã hủy", color: "bg-red-100 text-red-700", icon: XCircle },
+  };
+  
+  const item = config[status] || config.draft;
+  const Icon = item.icon;
+
+  return (
+    <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit ${item.color}`}>
+      <Icon className="w-3 h-3" />
+      {item.label}
+    </span>
+  );
 };
 
 export default function EventApprovalPage() {
@@ -106,29 +132,62 @@ export default function EventApprovalPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {plans.map((p) => (
-          <Card key={p._id} className="shadow-sm border">
-            <CardHeader>
-              <CardTitle>{p.booking?.customer_name || "Không rõ khách hàng"}</CardTitle>
-              <Badge
-                variant={
-                  p.status === "pending"
-                    ? "outline"
-                    : p.status === "confirmed"
-                    ? "default"
-                    : p.status === "cancelled"
-                    ? "destructive"
-                    : "secondary"
-                }
-              >
-                {p.status}
-              </Badge>
+          <Card key={p._id} className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-lg font-bold text-blue-900">
+                    {p.booking?.customer_name || "Khách hàng ẩn danh"}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                    <Phone className="w-3 h-3" />
+                    {p.booking?.phone || "SĐT: ---"}
+                  </div>
+                </div>
+                {getStatusBadge(p.status)}
+              </div>
             </CardHeader>
-            <CardContent>
-              <p><strong>Loại sự kiện:</strong> {p.step1?.eventCategory || "Không rõ"}</p>
-              <p><strong>Thời gian:</strong> {p.step2?.startDate} → {p.step2?.endDate}</p>
-              <Separator className="my-2" />
-              <Button variant="outline" onClick={() => { setSelectedPlan(p); setOpen(true); }}>
-                👁️ Xem chi tiết
+            <CardContent className="space-y-3 pt-0">
+              <Separator />
+              
+              <div className="grid gap-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <Tag className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-gray-700">Loại:</span> {p.step1?.eventCategory || "---"}
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2">
+                  <Calendar className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold text-gray-700">Thời gian:</span>
+                    <div className="text-gray-600">
+                      {p.step2?.startDate ? formatDate(p.step2?.startDate) : "???"} 
+                      {" ➔ "} 
+                      {p.step2?.endDate ? formatDate(p.step2?.endDate) : "???"}
+                    </div>
+                  </div>
+                </div>
+
+                {p.booking?.scale && (
+                   <div className="flex items-start gap-2">
+                    <Users className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-semibold text-gray-700">Quy mô:</span> {p.booking.scale} khách
+                    </div>
+                  </div>
+                )}
+                
+                {p.step3?.theme && (
+                   <div className="bg-gray-50 p-2 rounded text-xs italic text-gray-600 border">
+                    🎨 <b>Chủ đề:</b> {p.step3.theme}
+                   </div>
+                )}
+              </div>
+
+              <Button className="w-full mt-2" variant={["pending_manager", "pending_manager_demo"].includes(p.status) ? "default" : "outline"} onClick={() => { setSelectedPlan(p); setOpen(true); }}>
+                {["pending_manager", "pending_manager_demo"].includes(p.status) ? "👁️ Xem chi tiết & Phê duyệt" : "👁️ Xem chi tiết"}
               </Button>
             </CardContent>
           </Card>
@@ -443,17 +502,25 @@ export default function EventApprovalPage() {
                 );
               })}
 
-              {/* Nút phê duyệt */}
+              {/* Nút phê duyệt hoặc Thoát */}
               <div className="flex justify-end gap-3 pt-4">
-                <Button
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => handleApproval("approve")}
-                >
-                  ✅ Chấp nhận kế hoạch
-                </Button>
-                <Button variant="destructive" onClick={() => handleApproval("reject")}>
-                  ❌ Từ chối kế hoạch
-                </Button>
+                {["pending_manager", "pending_manager_demo"].includes(selectedPlan?.status) ? (
+                  <>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => handleApproval("approve")}
+                    >
+                      ✅ Chấp nhận kế hoạch
+                    </Button>
+                    <Button variant="destructive" onClick={() => handleApproval("reject")}>
+                      ❌ Từ chối kế hoạch
+                    </Button>
+                  </>
+                ) : (
+                  <Button variant="outline" onClick={() => setOpen(false)}>
+                    Thoát
+                  </Button>
+                )}
               </div>
             </div>
           ) : (

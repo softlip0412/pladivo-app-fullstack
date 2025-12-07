@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageCircle, X, Send } from "lucide-react";
+import { MessageCircle, X, Send, CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 const getEventPlanStatusInfo = (status) => {
   switch (status) {
@@ -97,6 +98,8 @@ export default function CustomersPage() {
     general_terms: "",
   });
   const [loadingContract, setLoadingContract] = useState(false);
+  const [isSavingContract, setIsSavingContract] = useState(false); // NEW: loading state for saving
+  const [isResendingEmail, setIsResendingEmail] = useState(false); // NEW: loading state for resending email
 
   const fetchBookings = async () => {
     try {
@@ -153,7 +156,7 @@ export default function CustomersPage() {
     if (!messageInput.trim()) return;
 
     if (!staff?._id) {
-      alert("Chưa tải thông tin nhân viên");
+      toast.error("Chưa tải thông tin nhân viên");
       return;
     }
 
@@ -179,7 +182,7 @@ export default function CustomersPage() {
       }
     } catch (err) {
       console.error("Error sending message:", err);
-      alert("Lỗi gửi tin nhắn: " + err.message);
+      toast.error("Lỗi gửi tin nhắn: " + err.message);
     } finally {
       setSendingMessage(false);
     }
@@ -297,12 +300,12 @@ export default function CustomersPage() {
           });
         }
       } else {
-          alert("Không tìm thấy thông tin Booking hoặc EventPlan để tạo hợp đồng.");
+          toast.error("Không tìm thấy thông tin Booking hoặc EventPlan để tạo hợp đồng.");
           setIsContractOpen(false);
       }
     } catch (err) {
       console.error("Error fetching contract info:", err);
-      alert("Lỗi tải thông tin hợp đồng");
+      toast.error("Lỗi tải thông tin hợp đồng");
     } finally {
       setLoadingContract(false);
     }
@@ -310,6 +313,7 @@ export default function CustomersPage() {
 
   const handleSaveContract = async () => {
     try {
+      setIsSavingContract(true); // START LOADING
       const res = await fetch("/api/event-contracts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -320,14 +324,40 @@ export default function CustomersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Lưu hợp đồng thành công!");
+        toast.success("Lưu hợp đồng thành công!");
         setIsContractOpen(false);
+        fetchBookings(); // Refresh list to update status
       } else {
-        alert("Lỗi lưu hợp đồng: " + data.message);
+        toast.error("Lỗi lưu hợp đồng: " + data.message);
       }
     } catch (err) {
       console.error("Error saving contract:", err);
-      alert("Lỗi lưu hợp đồng");
+      toast.error("Lỗi lưu hợp đồng");
+    } finally {
+      setIsSavingContract(false); // END LOADING
+    }
+  };
+
+  const handleResendEmail = async () => {
+    if (!contractData._id) return;
+    try {
+      setIsResendingEmail(true); // START LOADING
+      const res = await fetch("/api/event-contracts/resend-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract_id: contractData._id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Gửi lại email hợp đồng thành công!");
+      } else {
+        toast.error("Lỗi gửi email: " + data.message);
+      }
+    } catch (err) {
+      console.error("Error resending email:", err);
+      toast.error("Lỗi gửi email");
+    } finally {
+      setIsResendingEmail(false); // END LOADING
     }
   };
 
@@ -357,6 +387,24 @@ export default function CustomersPage() {
     });
   };
 
+  const getContractStatusBadge = (status) => {
+    const config = {
+      draft: { label: "📝 HĐ Nháp", color: "bg-gray-100 text-gray-700", icon: Clock },
+      sent: { label: "⏳ Đã gửi HĐ", color: "bg-yellow-100 text-yellow-700", icon: Clock },
+      signed: { label: "✅ Đã ký HĐ", color: "bg-green-100 text-green-700", icon: CheckCircle },
+      cancelled: { label: "❌ Hủy HĐ", color: "bg-red-100 text-red-700", icon: XCircle },
+      completed: { label: "🏁 Hoàn tất", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
+    };
+    const item = config[status] || { label: "Chưa có HĐ", color: "bg-gray-50 text-gray-500", icon: XCircle };
+    const Icon = item.icon;
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit ${item.color}`}>
+        <Icon className="w-3 h-3" />
+        {item.label}
+      </span>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold">🤝 Quản Lý Khách Hàng & Hợp Đồng</h1>
@@ -381,71 +429,82 @@ export default function CustomersPage() {
             );
           })
           .map((b) => (
-            <Card key={b._id} className="relative">
-              {/* ✅ Nút Chat góc phải */}
+
+            <Card key={b._id} className="relative shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+               {/* Move Chat button slightly to not overlap */}
               <Button
                 size="icon"
-                variant="outline"
-                className="absolute top-3 right-3"
+                variant="ghost"
+                className="absolute top-2 right-2 text-gray-400 hover:text-blue-600"
                 onClick={() => openChat(b)}
               >
-                <MessageCircle className="h-4 w-4" />
+                <MessageCircle className="h-5 w-5" />
               </Button>
 
-              <CardHeader>
-                <CardTitle>{b.customer_name}</CardTitle>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start pr-8">
+                  <div>
+                    <CardTitle className="text-lg font-bold text-blue-900">
+                      {b.customer_name}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                      <Phone className="w-3 h-3" />
+                      {b.phone}
+                    </div>
+                  </div>
+                </div>
+                 <div className="mt-2">
+                    {getContractStatusBadge(b.event_contract_status)}
+                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-2 text-sm">
-                <p>
-                  <b>Loại sự kiện:</b> {b.event_type}
-                </p>
-                <p>
-                  <b>Ngày:</b> {formatDate(b.event_date)}
-                </p>
-                <p>
-                  <b>Điện thoại:</b> {b.phone}
-                </p>
-                <p>
-                  <b>Email:</b> {b.email}
-                </p>
+              <CardContent className="space-y-3 pt-0">
+                 <div className="border-t my-2"></div>
+                
+                 <div className="grid gap-2 text-sm">
+                    <div className="flex items-start gap-2">
+                      <Tag className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-gray-700">Loại:</span> {b.event_type}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <Calendar className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-semibold text-gray-700">Thời gian:</span> {formatDate(b.event_date)}
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <Users className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                      <div>
+                         <span className="font-semibold text-gray-700">Email:</span> {b.email}
+                      </div>
+                    </div>
+                 </div>
 
                 <div className="flex flex-wrap gap-2 mt-2">
-                  <Badge
-                    variant={
-                      b.booking_status === "confirmed"
-                        ? "default"
-                        : "secondary"
-                    }
-                  >
-                    Booking: {b.booking_status}
+                  <Badge variant={b.booking_status === "confirmed" ? "default" : "secondary"} className="text-xs">
+                    {b.booking_status === "confirmed" ? "Confirmed" : "Pending"}
                   </Badge>
-
-                  <Badge
-                    variant={
-                      b.payment_status === "paid" ? "default" : "destructive"
-                    }
-                  >
-                    Thanh toán: {b.payment_status}
+                  <Badge variant={b.payment_status === "paid" ? "default" : "destructive"} className="text-xs">
+                    {b.payment_status === "paid" ? "Paid" : "Unpaid"}
                   </Badge>
-
-                  {/* Event Plan Status Badge */}
-                  <Badge
-                    className={`${
-                      getEventPlanStatusInfo(b.event_plan_status).color
-                    } text-white hover:opacity-80`}
-                  >
-                    KH: {getEventPlanStatusInfo(b.event_plan_status).label}
+                   <Badge className={`${getEventPlanStatusInfo(b.event_plan_status).color} text-white hover:opacity-80 text-xs`}>
+                    Plan: {getEventPlanStatusInfo(b.event_plan_status).label}
                   </Badge>
                 </div>
 
-                {b.event_plan_status === "customer_approved_demo" && (
+                {(b.event_plan_status === "customer_approved_demo" || (b.event_contract_status && b.event_contract_status !== "not_created")) && (
                   <Button
                     variant="default"
                     className="mt-3 w-full bg-blue-600 hover:bg-blue-700"
                     onClick={() => openContractDialog(b)}
                   >
-                    📄 Tạo hợp đồng
+                    {!b.event_contract_status || b.event_contract_status === "draft" ? "📄 Tạo hợp đồng" : ""}
+                    {b.event_contract_status === "sent" ? "📄 Xem/sửa hợp đồng" : ""}
+                    {["signed", "cancelled", "completed"].includes(b.event_contract_status) ? "📄 Xem hợp đồng" : ""}
                   </Button>
                 )}
               </CardContent>
@@ -540,6 +599,7 @@ export default function CustomersPage() {
               <p>Đang tải thông tin...</p>
           ) : (
               <div className="space-y-6 text-sm">
+                  <fieldset disabled={["signed", "cancelled", "completed"].includes(contractData.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
                   {/* Header */}
                   <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -943,10 +1003,28 @@ export default function CustomersPage() {
                         rows={3}
                       />
                   </div>
+                  </fieldset>
 
                   <div className="flex justify-end gap-2 pt-4">
-                      <Button variant="outline" onClick={() => setIsContractOpen(false)}>Hủy</Button>
-                      <Button onClick={handleSaveContract}>Lưu Hợp Đồng</Button>
+                      {["sent", "signed", "cancelled", "completed"].includes(contractData.status) && (
+                        <Button 
+                          variant="outline" 
+                          className="bg-blue-50 text-blue-600 border-blue-200" 
+                          onClick={handleResendEmail}
+                          disabled={isResendingEmail}
+                        >
+                           {isResendingEmail ? "Đang gửi..." : "📧 Gửi lại hợp đồng"}
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={() => setIsContractOpen(false)}>
+                        {["signed", "cancelled", "completed"].includes(contractData.status) ? "Thoát" : "Hủy"}
+                      </Button>
+                      
+                      {!["signed", "cancelled", "completed"].includes(contractData.status) && (
+                        <Button onClick={handleSaveContract} disabled={isSavingContract}>
+                          {isSavingContract ? "Đang lưu..." : "Lưu Hợp Đồng"}
+                        </Button>
+                      )}
                   </div>
               </div>
           )}

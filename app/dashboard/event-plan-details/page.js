@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ArrowLeft, Sparkles, X } from "lucide-react";
+import { Sparkles, X, CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone } from "lucide-react";
 import eventTemplates from "../data/event-templates";
 
 export default function EventPlanDetailsPage() {
@@ -520,23 +520,46 @@ export default function EventPlanDetailsPage() {
     return matchSearch && matchStatus;
   });
 
+  // ============ STATUS BADGE ============
+  const getStatusBadge = (status) => {
+    const config = {
+      draft: { label: "📝 Đang soạn", color: "bg-gray-100 text-gray-700", icon: Clock },
+      pending_manager: { label: "⏳ Chờ duyệt (Chi tiết)", color: "bg-yellow-100 text-yellow-700", icon: Clock },
+      pending_manager_demo: { label: "⏳ Chờ duyệt (Demo)", color: "bg-orange-100 text-orange-700", icon: Clock },
+      manager_approved: { label: "✅ QL đã duyệt (Chi tiết)", color: "bg-blue-100 text-blue-700", icon: CheckCircle },
+      manager_approved_demo: { label: "✅ QL đã duyệt (Demo)", color: "bg-blue-500 text-white", icon: CheckCircle },
+      pending_customer: { label: "⏳ Chờ khách (Chi tiết)", color: "bg-purple-100 text-purple-700", icon: Clock },
+      pending_customer_demo: { label: "⏳ Chờ khách (Demo)", color: "bg-purple-500 text-white", icon: Clock },
+      customer_approved: { label: "🎉 Khách đã chốt", color: "bg-green-100 text-green-700", icon: CheckCircle },
+      customer_approved_demo: { label: "🎉 Khách chốt Demo", color: "bg-green-500 text-white", icon: CheckCircle },
+      in_progress: { label: "🚀 Đang triển khai", color: "bg-indigo-100 text-indigo-700", icon: Calendar },
+      completed: { label: "🏁 Hoàn thành", color: "bg-emerald-100 text-emerald-700", icon: CheckCircle },
+      cancelled: { label: "❌ Đã hủy", color: "bg-red-100 text-red-700", icon: XCircle },
+    };
+
+    const item = config[status] || config.draft;
+    const Icon = item.icon;
+
+    if (!status && !config[status]) {
+         return (
+             <span className="px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit bg-gray-50 text-gray-400">
+               <Clock className="w-3 h-3" />
+               Chưa có
+             </span>
+         )
+    }
+
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit ${item.color}`}>
+        <Icon className="w-3 h-3" />
+        {item.label}
+      </span>
+    );
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          onClick={() => router.push("/dashboard/event-plans")}
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Quay lại
-        </Button>
-        <h1 className="text-2xl font-bold">📋 Quản lý Kế hoạch Chi tiết</h1>
-      </div>
-
-      <p className="text-gray-600">
-        Trang này hiển thị các booking đã được <strong>phê duyệt kế hoạch demo</strong> (Step 1-3). 
-        Click vào booking để tiếp tục lập kế hoạch chi tiết (Step 4-9).
-      </p>
+      <h1 className="text-2xl font-bold">📋 Quản lý Kế hoạch Chi tiết</h1>
 
       {/* FILTERS */}
       <div className="flex flex-col md:flex-row gap-3">
@@ -577,43 +600,55 @@ export default function EventPlanDetailsPage() {
             const plan = plansMap[b._id];
             
             return (
-              <Card key={b._id}>
-                <CardHeader>
-                  <CardTitle>{b.customer_name}</CardTitle>
+              <Card key={b._id} className="shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
+                <CardHeader className="pb-2">
+                   <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg font-bold text-blue-900">{b.customer_name}</CardTitle>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                           <Phone className="w-3 h-3" />
+                           {b.phone}
+                        </div>
+                      </div>
+                      <div className="mt-1">
+                        {getStatusBadge(plan.status)}
+                      </div>
+                   </div>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  <p>
-                    <b>Ngày tổ chức:</b> {formatDate(b.event_date)}
-                  </p>
-                  <p>
-                    <b>Loại sự kiện:</b> {b.event_type}
-                  </p>
-                  <p>
-                    <b>Địa điểm:</b> {b.address}
-                  </p>
+                <CardContent className="space-y-3 pt-0">
+                   <div className="border-t my-2"></div>
+                   <div className="grid gap-2 text-sm">
+                      <div className="flex items-start gap-2">
+                        <Tag className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                         <div>
+                            <span className="font-semibold text-gray-700">Loại:</span> {b.event_type}
+                         </div>
+                      </div>
+                       <div className="flex items-start gap-2">
+                        <Calendar className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+                         <div>
+                            <span className="font-semibold text-gray-700">Ngày:</span> {formatDate(b.event_date)}
+                         </div>
+                      </div>
+                       <div className="flex items-start gap-2">
+                        <Users className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                         <div>
+                            <span className="font-semibold text-gray-700">Email:</span> {b.email}
+                         </div>
+                      </div>
+                   </div>
 
-                  <div className="mt-3">
-                    <span className={`px-3 py-1 rounded inline-flex items-center gap-1 text-sm ${
-                      plan.status === "draft"
-                        ? "bg-gray-100 text-gray-700"
-                        : plan.status.includes("pending")
-                        ? "bg-yellow-100 text-yellow-700"
-                        : "bg-green-100 text-green-700"
-                    }`}>
-                      {plan.status === "draft" && "📝 Đang soạn thảo"}
-                      {plan.status.includes("pending") && "⏳ Chờ phê duyệt"}
-                      {plan.status.includes("approved") && "✅ Đã duyệt"}
-                    </span>
-                  </div>
-
-                  <div className="mt-3">
-                    <Button
-                      className="w-full"
-                      onClick={() => handleOpenDialog(b._id)}
-                    >
-                      📋 Lập kế hoạch chi tiết
-                    </Button>
-                  </div>
+                   <div className="mt-3">
+                       <Button
+                         className="w-full"
+                         variant="outline"
+                         onClick={() => handleOpenDialog(b._id)}
+                       >
+                          {["draft", "customer_approved_demo"].includes(plan.status) && "Lập kế hoạch chi tiết"}
+                          {["pending_manager", "pending_customer"].includes(plan.status) && "Xem/sửa kế hoạch chi tiết"}
+                          {["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(plan.status) && "Xem"}
+                       </Button>
+                   </div>
                 </CardContent>
               </Card>
             );
@@ -703,7 +738,7 @@ export default function EventPlanDetailsPage() {
 
           {/* STEP 5 - CHUẨN BỊ CHI TIẾT */}
           {step === 5 && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 5. Chuẩn bị chi tiết (Pre-event)
               </h2>
@@ -806,11 +841,11 @@ export default function EventPlanDetailsPage() {
                   + Thêm dòng
                 </Button>
               </Card>
-            </div>
+            </fieldset>
           )}
           {/* STEP 6 - TRUYỀN THÔNG & MARKETING */}
           {step === 6 && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 6. Truyền thông & Marketing
               </h2>
@@ -928,11 +963,11 @@ export default function EventPlanDetailsPage() {
                   + Thêm dòng
                 </Button>
               </Card>
-            </div>
+            </fieldset>
           )}
           {/* STEP 7 - TRIỂN KHAI NGÀY SỰ KIỆN */}
           {step === 7 && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 7. Triển khai ngày sự kiện (Event Day)
               </h2>
@@ -1050,11 +1085,11 @@ export default function EventPlanDetailsPage() {
                   + Thêm dòng
                 </Button>
               </Card>
-            </div>
+            </fieldset>
           )}
           {/* STEP 8 - HẬU SỰ KIỆN */}
           {step === 8 && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 8. Hậu sự kiện (Post-event)
               </h2>
@@ -1156,11 +1191,11 @@ export default function EventPlanDetailsPage() {
                   + Thêm dòng
                 </Button>
               </Card>
-            </div>
+            </fieldset>
           )}
           {/* STEP 9 - KẾ HOẠCH BÁN VÉ (chỉ cho Sự kiện đại chúng) */}
           {step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng" && (
-            <div className="space-y-6">
+            <fieldset disabled={["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status)} className="space-y-6 border-none p-0 m-0 min-w-0">
               <h2 className="text-xl font-semibold">
                 9. Kế hoạch bán vé
               </h2>
@@ -1331,36 +1366,45 @@ export default function EventPlanDetailsPage() {
                   </div>
                 </div>
               </Card>
-            </div>
+            </fieldset>
           )}
 
           {/* Navigation */}
-<div className="flex justify-between mt-6">
-  <Button 
-    disabled={step === 5} 
-    onClick={() => setStep(step - 1)}
-  >
+          {/* Navigation with Status Logic */}
+          <div className="flex justify-between mt-6">
+            <Button 
+              disabled={step === 5} 
+              onClick={() => setStep(step - 1)}
+              variant="outline"
+            >
+              ← Quay lại
+            </Button>
+            
+            {/* Next button - check event type for step 9 */}
+            {((step < 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
+              (step < 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
+              <Button onClick={() => setStep(step + 1)}>
+                Tiếp tục →
+              </Button>
+            )}
 
-    ← Quay lại
-  </Button>
-  {/* Next button - check event type for step 9 */}
-  {((step < 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
-    (step < 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
-    <Button onClick={() => setStep(step + 1)}>
-      Tiếp tục →
-    </Button>
-  )}
-  {/* Complete button - step 9 for public events, step 8 for others */}
-  {((step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
-    (step === 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
-    <Button
-      className="bg-green-600 text-white"
-      onClick={handleCompletePlan}
-    >
-      ✅ Hoàn tất kế hoạch
-    </Button>
-  )}
-</div>
+            {/* Complete/Action button - step 9 for public events, step 8 for others */}
+            {((step === 9 && bookingInfo?.event_type === "Sự kiện đại chúng") ||
+              (step === 8 && bookingInfo?.event_type !== "Sự kiện đại chúng")) && (
+                ["manager_approved", "customer_approved", "cancelled", "completed", "in_progress"].includes(editingPlan?.status) ? (
+                  <Button variant="outline" onClick={() => setOpen(false)}>
+                    Thoát
+                  </Button>
+                ) : (
+                  <Button
+                    className="bg-green-600 text-white"
+                    onClick={handleCompletePlan}
+                  >
+                    Sửa kế hoạch chi tiết
+                  </Button>
+                )
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
