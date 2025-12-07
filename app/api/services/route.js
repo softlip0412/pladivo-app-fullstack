@@ -1,6 +1,6 @@
 import { connectDB } from "@/app/api/common/db";
 import { Service } from "@/models";
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "@/lib/cloudinary";
 
 // 📦 Lấy danh sách dịch vụ
 export async function GET() {
@@ -9,11 +9,7 @@ export async function GET() {
   return Response.json({ success: true, data: services }, { status: 200 });
 }
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
+
 
 
 
@@ -62,7 +58,9 @@ export async function POST(request) {
     description,
     minPrice,
     maxPrice,
+    maxPrice,
     unit,
+    type: formData.get("type") || "Hội nghị",
     images: imageUrls,
   });
 

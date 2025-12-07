@@ -1,6 +1,6 @@
 import { connectDB } from "@/app/api/common/db";
 import { Service } from "@/models";
-import { v2 as cloudinary } from "cloudinary";
+import cloudinary from "@/lib/cloudinary";
 
 // 🔹 Lấy chi tiết dịch vụ
 export async function GET(_, { params }) {
@@ -15,11 +15,12 @@ export async function GET(_, { params }) {
   return Response.json(service, { status: 200 });
 }
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
-});
+// Config moved to handler
+// cloudinary.config({
+//   cloud_name: process.env.CLOUDINARY_CLOUD,
+//   api_key: process.env.CLOUDINARY_KEY,
+//   api_secret: process.env.CLOUDINARY_SECRET,
+// });
 
 
 
@@ -36,6 +37,7 @@ export async function PATCH(request, { params }) {
     minPrice: Number(formData.get("minPrice")),
     maxPrice: Number(formData.get("maxPrice")),
     unit: formData.get("unit"),
+    type: formData.get("type"),
   };
 
   // 1) Danh sách ảnh cũ còn giữ lại

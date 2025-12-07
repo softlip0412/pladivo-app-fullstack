@@ -2514,7 +2514,7 @@ export default function EventPlansPage() {
                        <Button className="w-full" variant="outline" onClick={() => handleOpenPlanDialog(b, "edit", plan)}>
                           {["draft", "pending_manager_demo"].includes(status) && "Lên kế hoạch"}
                           {["manager_approved_demo", "pending_customer_demo"].includes(status) && "Xem/sửa kế hoạch"}
-                          {["customer_approved_demo", "cancelled", "completed", "in_progress", "manager_approved"].includes(status) && "Xem"}
+                          {["customer_approved_demo", "cancelled", "completed", "in_progress", "manager_approved", "customer_approved"].includes(status) && "Xem"}
                        </Button>
                      )}
                    </div>

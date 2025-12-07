@@ -17,6 +17,16 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export default function ServicesPage() {
@@ -28,10 +38,11 @@ export default function ServicesPage() {
   const [currentImages, setCurrentImages] = useState([]);
 
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedType, setSelectedType] = useState("all");
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
-
-  const [removedImages, setRemovedImages] = useState([]);
+  
+  const [serviceToDelete, setServiceToDelete] = useState(null);
 
   const [form, setForm] = useState({
     category_id: "",
@@ -40,10 +51,11 @@ export default function ServicesPage() {
     minPrice: "",
     maxPrice: "",
     unit: "",
-    images: [],
+    type: "Hội nghị",
+    images: [], // Kept for compatibility if needed, but handled by imageFiles primarily
   });
 
-  const [previewImages, setPreviewImages] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]); // { file, preview, isExisting }
 
   async function fetchServices() {
     const res = await fetch("/api/services");
@@ -65,9 +77,21 @@ export default function ServicesPage() {
   // 🔹 Upload nhiều ảnh và xem trước
   function handleImageChange(e) {
     const files = Array.from(e.target.files);
-    setForm({ ...form, images: files });
-    const previews = files.map((file) => URL.createObjectURL(file));
-    setPreviewImages(previews);
+    
+    const newImages = files.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      isExisting: false
+    }));
+
+    setImageFiles(prev => [...prev, ...newImages]);
+    
+    // Reset inputs value to allow selecting same file again if needed
+    e.target.value = "";
+  }
+  
+  function handleRemoveImage(index) {
+     setImageFiles(prev => prev.filter((_, i) => i !== index));
   }
 
   // 🔹 Thêm / sửa dịch vụ
@@ -85,12 +109,21 @@ export default function ServicesPage() {
     formData.append("minPrice", form.minPrice);
     formData.append("maxPrice", form.maxPrice);
     formData.append("unit", form.unit);
+    formData.append("type", form.type);
 
-    // Ảnh cũ còn lại
-    formData.append("remainingImages", JSON.stringify(previewImages));
+    // Ảnh cũ còn lại (chỉ lấy những ảnh có isExisting = true)
+    const remainingImages = imageFiles
+      .filter(img => img.isExisting)
+      .map(img => img.preview);
+    
+    formData.append("remainingImages", JSON.stringify(remainingImages));
 
-    // Ảnh mới upload
-    form.images.forEach((file) => formData.append("images", file));
+    // Ảnh mới upload (những ảnh có file)
+    const newFiles = imageFiles
+      .filter(img => !img.isExisting && img.file)
+      .map(img => img.file);
+
+    newFiles.forEach((file) => formData.append("images", file));
 
     const res = await fetch(url, { method, body: formData });
 
@@ -107,22 +140,30 @@ export default function ServicesPage() {
         minPrice: "",
         maxPrice: "",
         unit: "",
+        type: "Hội nghị",
         images: [],
       });
-      setPreviewImages([]);
+      setImageFiles([]);
       fetchServices();
     } else {
       toast.error("Thao tác thất bại!");
     }
   }
 
-  async function handleDelete(id) {
-    if (!confirm("Bạn có chắc muốn xóa dịch vụ này?")) return;
-    const res = await fetch(`/api/services/${id}`, { method: "DELETE" });
+  async function handleDelete(service) {
+    setServiceToDelete(service);
+  }
+
+  async function confirmDelete() {
+    if (!serviceToDelete) return;
+    const res = await fetch(`/api/services/${serviceToDelete._id}`, { method: "DELETE" });
     if (res.ok) {
       toast.success("Đã xóa dịch vụ!");
       fetchServices();
-    } else toast.error("Xóa thất bại!");
+      setServiceToDelete(null);
+    } else {
+      toast.error("Xóa thất bại!");
+    }
   }
 
   function openAddModal() {
@@ -134,9 +175,10 @@ export default function ServicesPage() {
       minPrice: "",
       maxPrice: "",
       unit: "",
+      type: "Hội nghị",
       images: [],
     });
-    setPreviewImages([]);
+    setImageFiles([]); // Reset
     setShowModal(true);
   }
 
@@ -149,15 +191,23 @@ export default function ServicesPage() {
       minPrice: service.minPrice || "",
       maxPrice: service.maxPrice || "",
       unit: service.unit || "",
+      type: service.type || "Hội nghị",
       images: [],
     });
-    setPreviewImages(service.images || []);
+    
+    // Initialize existing images
+    const existingIds = (service.images || []).map(url => ({
+      file: null,
+      preview: url,
+      isExisting: true
+    }));
+    setImageFiles(existingIds);
+    
     setShowModal(true);
   }
 
   function openImagesModal(images) {
     setCurrentImages(images);
-    setRemovedImages([]);
     setShowImagesModal(true);
   }
 
@@ -183,10 +233,12 @@ export default function ServicesPage() {
     }
   }
 
-  const filteredServices =
-    selectedCategory === "all"
-      ? services
-      : services.filter((s) => s.category_id?._id === selectedCategory);
+  const filteredServices = services.filter((s) => {
+    const matchCategory =
+      selectedCategory === "all" || s.category_id?._id === selectedCategory;
+    const matchType = selectedType === "all" || s.type === selectedType;
+    return matchCategory && matchType;
+  });
 
   return (
     <div className="space-y-6">
@@ -218,38 +270,81 @@ export default function ServicesPage() {
             </SelectContent>
           </Select>
 
+          <Select
+            value={selectedType}
+            onValueChange={(val) => setSelectedType(val)}
+          >
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Lọc theo loại" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả loại</SelectItem>
+              <SelectItem value="Hội nghị">Hội nghị</SelectItem>
+              <SelectItem value="Sự kiện đại chúng">Sự kiện đại chúng</SelectItem>
+              <SelectItem value="Sự kiện công ty">Sự kiện công ty</SelectItem>
+            </SelectContent>
+          </Select>
+
           <Button onClick={openAddModal}>➕ Thêm dịch vụ</Button>
         </div>
       </div>
 
-      <ul className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredServices.map((s) => (
-          <li key={s._id} className="p-4 border rounded-lg bg-white shadow">
-            <h2 className="font-semibold">{s.name}</h2>
-            <p className="text-gray-600">{s.description}</p>
-            <p className="mt-1 font-medium">
-              Giá: {s.minPrice?.toLocaleString()} -{" "}
-              {s.maxPrice?.toLocaleString()} {s.unit}
-            </p>
-            <p className="text-gray-500">
-              Danh mục: {s.category_id?.name || "Chưa có"}
-            </p>
+          <div
+            key={s._id}
+            className="flex flex-col p-4 border rounded-lg bg-white shadow hover:shadow-md transition-shadow"
+          >
+            {s.images && s.images.length > 0 ? (
+              <div className="w-full h-48 mb-3 overflow-hidden rounded-md bg-gray-100">
+                <img
+                  src={s.images[0]}
+                  alt={s.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-full h-48 mb-3 flex items-center justify-center bg-gray-100 rounded-md text-gray-400">
+                <span>Không có ảnh</span>
+              </div>
+            )}
 
-            {s.images && s.images.length > 0 && (
+            <div className="flex-1">
+              <h2 className="font-semibold text-lg line-clamp-1" title={s.name}>
+                {s.name}
+              </h2>
+              <p className="text-gray-600 text-sm line-clamp-2 mt-1 h-10">
+                {s.description}
+              </p>
+
+              <div className="mt-3 space-y-1">
+                <p className="text-sm font-medium">
+                  Giá: <span className="text-indigo-600">{s.minPrice?.toLocaleString()}</span> -{" "}
+                  <span className="text-indigo-600">{s.maxPrice?.toLocaleString()}</span>{" "}
+                  <span className="text-gray-500">({s.unit})</span>
+                </p>
+                <p className="text-xs text-gray-500">
+                  Danh mục: {s.category_id?.name || "Chưa có"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Loại: <span className="font-medium text-indigo-600">{s.type}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-4 pt-3 border-t">
               <Button
                 size="sm"
                 variant="outline"
-                className="mt-2"
+                className="flex-1"
                 onClick={() => openImagesModal(s.images)}
               >
                 📷 Xem ảnh
               </Button>
-            )}
-
-            <div className="flex gap-2 mt-3">
               <Button
                 size="sm"
                 variant="outline"
+                className="flex-1"
                 onClick={() => openEditModal(s)}
               >
                 ✏️ Sửa
@@ -257,19 +352,20 @@ export default function ServicesPage() {
               <Button
                 size="sm"
                 variant="destructive"
-                onClick={() => handleDelete(s._id)}
+                className="px-3"
+                onClick={() => handleDelete(s)}
               >
-                🗑️ Xóa
+                🗑️
               </Button>
             </div>
-          </li>
+          </div>
         ))}
         {filteredServices.length === 0 && (
-          <li className="p-4 text-gray-500">
+          <div className="col-span-full p-8 text-center text-gray-500 border rounded-lg border-dashed">
             Không có dịch vụ nào trong danh mục này.
-          </li>
+          </div>
         )}
-      </ul>
+      </div>
 
       {/* Modal Thêm / Sửa dịch vụ */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
@@ -295,6 +391,23 @@ export default function ServicesPage() {
                     {c.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+
+            <Label>Loại dịch vụ</Label>
+            <Select
+              value={form.type}
+              onValueChange={(val) => setForm({ ...form, type: val })}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Chọn loại dịch vụ" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Hội nghị">Hội nghị</SelectItem>
+                <SelectItem value="Sự kiện đại chúng">
+                  Sự kiện đại chúng
+                </SelectItem>
+                <SelectItem value="Sự kiện công ty">Sự kiện công ty</SelectItem>
               </SelectContent>
             </Select>
 
@@ -349,26 +462,19 @@ export default function ServicesPage() {
               onChange={handleImageChange}
             />
 
-            {previewImages.length > 0 && (
+            {imageFiles.length > 0 && (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                {previewImages.map((src, idx) => (
+                {imageFiles.map((img, idx) => (
                   <div key={idx} className="relative group">
                     <img
-                      src={src}
+                      src={img.preview}
                       alt={`Ảnh ${idx + 1}`}
                       className="w-full h-32 object-cover rounded"
                     />
 
                     <button
                       type="button"
-                      onClick={() => {
-                        const newImages = [...previewImages];
-                        newImages.splice(idx, 1);
-                        setPreviewImages(newImages);
-
-                        const removed = [...removedImages, src];
-                        setRemovedImages(removed);
-                      }}
+                      onClick={() => handleRemoveImage(idx)}
                       className="absolute top-1 right-1 bg-red-500 text-white px-2 py-1 text-xs rounded opacity-80 hover:opacity-100"
                     >
                       ✕
@@ -430,6 +536,24 @@ export default function ServicesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Alert Dialog xóa dịch vụ */}
+      <AlertDialog open={!!serviceToDelete} onOpenChange={(open) => !open && setServiceToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Hành động này không thể hoàn tác. Dịch vụ "{serviceToDelete?.name}" sẽ bị xóa vĩnh viễn khỏi hệ thống.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
