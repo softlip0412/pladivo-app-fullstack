@@ -34,10 +34,13 @@ export async function POST(request) {
 
     // Lấy thông tin department nếu user là staff/employee
     let departmentName = null;
+    let departmentCode = null;
+    
     if (user.role === "staff" || user.role === "employee") {
       const staff = await Staff.findOne({ user_id: user._id }).populate("department_id");
       if (staff && staff.department_id) {
         departmentName = staff.department_id.name;
+        departmentCode = staff.department_id.code;
       }
     }
 
@@ -58,6 +61,7 @@ export async function POST(request) {
         phone: user.phone,
         status: user.status,
         department: departmentName,
+        department_code: departmentCode,
       },
     });
 

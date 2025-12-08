@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 import { LogOut } from "lucide-react";
-import { ALL_MENU_ITEMS } from "@/config/navConfig";
+import { ALL_MENU_ITEMS, getMenuItemsByDepartment } from "@/config/navConfig";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
@@ -32,8 +32,12 @@ export default function DashboardLayout({ children }) {
       const userData = JSON.parse(savedUser);
       setUser(userData);
       
-      // Hiển thị tất cả menu items (đã bỏ phân quyền UI)
-      setMenuItems(ALL_MENU_ITEMS);
+      // Phân quyền menu
+      const allowedItems = getMenuItemsByDepartment(
+        userData.department_code,
+        userData.role
+      );
+      setMenuItems(allowedItems);
     }
   }, [router]);
 

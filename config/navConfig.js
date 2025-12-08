@@ -152,10 +152,10 @@ export const ALL_MENU_ITEMS = [
   },
 ];
 
-// Phân quyền menu theo bộ phận
+// Phân quyền menu theo department CODE
 export const DEPARTMENT_PERMISSIONS = {
   // 1. Admin - Quyền cao nhất (toàn bộ menu)
-  Admin: [
+  ADMIN: [
     "home",
     "blogs",
     "users",
@@ -180,8 +180,7 @@ export const DEPARTMENT_PERMISSIONS = {
   ],
 
   // 2. Nhân viên Tổ chức sự kiện (Event Team)
-  // Làm việc với kế hoạch, tổ chức, sự kiện, khách hàng, hợp đồng
-  "Nhân viên Tổ chức sự kiện": [
+  EVENT_ORGANIZER: [
     "home",
     "staffs",
     "services",
@@ -200,8 +199,7 @@ export const DEPARTMENT_PERMISSIONS = {
   ],
 
   // 3. Nhân viên thực hiện (Production / Execution)
-  // Tập trung vào công việc được giao và báo cáo
-  "Nhân viên thực hiện": [
+  EXECUTION_STAFF: [
     "home",
     "event-plans",
     "event-plan-details",
@@ -210,8 +208,7 @@ export const DEPARTMENT_PERMISSIONS = {
   ],
 
   // 4. Nhân viên Quản lý (Team Leader / Manager)
-  // Quản lý team, phê duyệt kế hoạch, theo dõi tiến độ
-  "Nhân viên Quản lý": [
+  MANAGER: [
     "home",
     "blogs",
     "users",
@@ -234,8 +231,7 @@ export const DEPARTMENT_PERMISSIONS = {
   ],
 
   // 5. Nhân viên Marketing
-  // Tập trung vào content, quảng cáo, truyền thông, bán vé
-  "Nhân viên Marketing": [
+  MARKETING: [
     "home",
     "blogs",
     "services",
@@ -252,24 +248,24 @@ export const DEPARTMENT_PERMISSIONS = {
 };
 
 /**
- * Lấy danh sách menu items được phép dựa trên department
- * @param {string} department - Tên bộ phận
+ * Lấy danh sách menu items được phép dựa trên department CODE
+ * @param {string} departmentCode - Mã bộ phận (ví dụ: 'MANAGER', 'MARKETING')
  * @param {string} role - Role của user (admin, staff, etc.)
  * @returns {Array} - Danh sách menu items được phép hiển thị
  */
-export function getMenuItemsByDepartment(department, role) {
+export function getMenuItemsByDepartment(departmentCode, role) {
   // Nếu là admin hoặc system_admin → toàn quyền
   if (role === "admin" || role === "system_admin") {
     return ALL_MENU_ITEMS;
   }
 
-  // Nếu không có department → chỉ hiển thị trang chủ
-  if (!department) {
+  // Nếu không có departmentCode → chỉ hiển thị trang chủ
+  if (!departmentCode) {
     return ALL_MENU_ITEMS.filter((item) => item.id === "home");
   }
 
-  // Lấy danh sách menu IDs được phép cho department này
-  const allowedMenuIds = DEPARTMENT_PERMISSIONS[department] || ["home"];
+  // Lấy danh sách menu IDs được phép cho department code này
+  const allowedMenuIds = DEPARTMENT_PERMISSIONS[departmentCode] || ["home"];
 
   // Filter menu items
   return ALL_MENU_ITEMS.filter((item) => allowedMenuIds.includes(item.id));
