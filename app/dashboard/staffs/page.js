@@ -740,20 +740,20 @@ export default function StaffPage() {
                 Tài khoản hệ thống
               </div>
               <div>
-                <strong>Username:</strong> {selectedStaff.user?.username || "—"}
+                <strong>Username:</strong> {selectedStaff.user_id?.username || "—"}
               </div>
               <div>
-                <strong>Email:</strong> {selectedStaff.user?.email || "—"}
+                <strong>Email:</strong> {selectedStaff.user_id?.email || "—"}
               </div>
               <div>
                 <strong>Số điện thoại:</strong>{" "}
-                {selectedStaff.user?.phone || "—"}
+                {selectedStaff.user_id?.phone || "—"}
               </div>
               <div>
-                <strong>Vai trò:</strong> {selectedStaff.role?.name || "—"}
+                <strong>Vai trò:</strong> {selectedStaff.role_id?.name || "—"}
               </div>
               <div>
-                <strong>Trạng thái:</strong> {selectedStaff.user?.status || "—"}
+                <strong>Trạng thái:</strong> {selectedStaff.user_id?.status || "—"}
               </div>
 
               {/* ----------------- Thông tin cá nhân ----------------- */}
