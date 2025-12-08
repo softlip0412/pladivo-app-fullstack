@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   SidebarProvider,
@@ -20,6 +20,7 @@ import { ALL_MENU_ITEMS } from "@/config/navConfig";
 
 export default function DashboardLayout({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
 
@@ -72,9 +73,10 @@ export default function DashboardLayout({ children }) {
               <SidebarMenu>
                 {menuItems.map((item) => {
                   const IconComponent = item.icon;
+                  const isActive = pathname === item.path;
                   return (
                     <SidebarMenuItem key={item.id}>
-                      <SidebarMenuButton asChild>
+                      <SidebarMenuButton asChild isActive={isActive}>
                         <Link href={item.path}>
                           <IconComponent className="mr-2" />
                           <span>{item.label}</span>
