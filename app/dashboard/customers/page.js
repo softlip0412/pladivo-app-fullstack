@@ -55,13 +55,7 @@ export default function CustomersPage() {
   const [user, setUser] = useState(null);
   const [staff, setStaff] = useState(null);
 
-  // Chat states
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [messageInput, setMessageInput] = useState("");
-  const [loadingChat, setLoadingChat] = useState(false);
-  const [sendingMessage, setSendingMessage] = useState(false);
+
 
   // Contract states
   const [isContractOpen, setIsContractOpen] = useState(false);
@@ -137,63 +131,7 @@ export default function CustomersPage() {
     }
   };
 
-  const fetchMessages = async (bookingId) => {
-    try {
-      setLoadingChat(true);
-      const res = await fetch(`/api/messages?booking_id=${bookingId}`);
-      const data = await res.json();
 
-      if (data.success) {
-        setMessages(data.data || []);
-      }
-    } catch (err) {
-      console.error("Error fetching messages:", err);
-    } finally {
-      setLoadingChat(false);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (!messageInput.trim()) return;
-
-    if (!staff?._id) {
-      toast.error("Chưa tải thông tin nhân viên");
-      return;
-    }
-
-    try {
-      setSendingMessage(true);
-
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          booking_id: selectedBooking._id,
-          sender_id: staff._id,
-          content: messageInput,
-          message_type: "text",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setMessages([...messages, data.data]);
-        setMessageInput("");
-      }
-    } catch (err) {
-      console.error("Error sending message:", err);
-      toast.error("Lỗi gửi tin nhắn: " + err.message);
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  const openChat = (booking) => {
-    setSelectedBooking(booking);
-    setIsChatOpen(true);
-    fetchMessages(booking._id);
-  };
 
   // --- CONTRACT LOGIC ---
   const openContractDialog = async (booking) => {
@@ -436,15 +374,7 @@ export default function CustomersPage() {
           .map((b) => (
 
             <Card key={b._id} className="relative shadow-md hover:shadow-lg transition-shadow border-l-4 border-l-blue-500">
-               {/* Move Chat button slightly to not overlap */}
-              <Button
-                size="icon"
-                variant="ghost"
-                className="absolute top-2 right-2 text-gray-400 hover:text-blue-600"
-                onClick={() => openChat(b)}
-              >
-                <MessageCircle className="h-5 w-5" />
-              </Button>
+
 
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start pr-8">
@@ -517,81 +447,7 @@ export default function CustomersPage() {
           ))}
       </div>
 
-      {/* Chat Dialog */}
-      <Dialog open={isChatOpen} onOpenChange={setIsChatOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>
-              💬 Chat với {selectedBooking?.customer_name}
-            </DialogTitle>
-          </DialogHeader>
 
-          {/* Messages Container */}
-          <div className="flex-1 overflow-y-auto bg-gray-50 p-4 rounded space-y-3 min-h-[400px]">
-            {loadingChat ? (
-              <p className="text-center text-gray-500">Đang tải tin nhắn...</p>
-            ) : messages.length === 0 ? (
-              <p className="text-center text-gray-500">
-                Chưa có tin nhắn. Bắt đầu cuộc trò chuyện!
-              </p>
-            ) : (
-              messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${
-                    msg.sender_id?._id === staff?._id
-                      ? "justify-end"
-                      : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-xs px-4 py-2 rounded-lg ${
-                      msg.sender_id?._id === staff?._id
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-300 text-gray-900"
-                    }`}
-                  >
-                    <p className="text-sm">
-                      <b>
-                        {msg.sender_id?.full_name ||
-                          msg.sender_id?.username ||
-                          "Unknown"}
-                      </b>
-                    </p>
-                    <p>{msg.content}</p>
-                    <p className="text-xs mt-1 opacity-70">
-                      {formatTime(msg.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Input */}
-          <div className="flex gap-2 mt-4">
-            <Textarea
-              value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              placeholder="Nhập tin nhắn..."
-              rows={2}
-              onKeyPress={(e) => {
-                if (e.key === "Enter" && e.ctrlKey) {
-                  handleSendMessage();
-                }
-              }}
-            />
-            <Button
-              onClick={handleSendMessage}
-              disabled={sendingMessage || !messageInput.trim()}
-              className="self-end"
-            >
-              <Send className="h-4 w-4 mr-1" />
-              {sendingMessage ? "Gửi..." : "Gửi"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Contract Dialog */}
       <Dialog open={isContractOpen} onOpenChange={setIsContractOpen}>
