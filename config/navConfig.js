@@ -15,6 +15,8 @@ import {
   StickyNote,
   ClipboardCheck,
   FileText,
+  DollarSign,
+  Wallet,
 } from "lucide-react";
 
 // Danh sách tất cả menu items
@@ -114,6 +116,18 @@ export const ALL_MENU_ITEMS = [
     path: "/dashboard/ticket-reports",
     icon: ChartBar,
     label: "Thống kê bán vé",
+  },
+  {
+    id: "payroll",
+    path: "/dashboard/payroll",
+    icon: DollarSign,
+    label: "Tính lương",
+  },
+  {
+    id: "my-salary",
+    path: "/dashboard/my-salary",
+    icon: Wallet,
+    label: "Lương của tôi",
   },
 ];
 
