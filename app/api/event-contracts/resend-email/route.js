@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/api/common/db";
 import EventContract from "@/models/EventContract";
 import { sendContractEmail } from "@/lib/email";
+import { createPaymentData } from "@/lib/sepay";
 
 // POST: Gửi lại email hợp đồng
 export async function POST(request) {
@@ -36,7 +37,6 @@ export async function POST(request) {
 
     // Tự động làm mới thông tin thanh toán cho các đợt chưa thanh toán
     try {
-      const { createPaymentData } = await import("@/lib/sepay");
       let hasUpdates = false;
 
       contract.payment_schedule.forEach((item, index) => {
@@ -54,6 +54,7 @@ export async function POST(request) {
       });
 
       if (hasUpdates) {
+        contract.markModified('payment_schedule');
         await contract.save();
         console.log("🔄 Regenerated payment info for resending contract:", contract.contract_number);
       }
