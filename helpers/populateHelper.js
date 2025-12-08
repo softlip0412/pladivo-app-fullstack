@@ -27,10 +27,6 @@ const populateConfig = {
   equipment: [
     { path: "createdBy", select: "firstname lastname email role profile" },
   ],
-  promotions: [
-    { path: "createdBy", select: "firstname lastname email role profile" },
-    { path: "approvedBy", select: "firstname lastname email role profile" },
-  ],
   notifications: [
     { path: "recipientId", select: "firstname lastname email role profile" },
   ],
