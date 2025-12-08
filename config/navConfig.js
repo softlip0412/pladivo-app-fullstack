@@ -18,6 +18,8 @@ import {
   DollarSign,
   Wallet,
   TrendingUp,
+  Clock,
+  MessageSquare,
 } from "lucide-react";
 
 // Danh sách tất cả menu items
@@ -95,6 +97,18 @@ export const ALL_MENU_ITEMS = [
     label: "Hợp đồng đối tác",
   },
   {
+    id: "timeline",
+    path: "/dashboard/timeline",
+    icon: Clock,
+    label: "Timeline công việc",
+  },
+  {
+    id: "feedback",
+    path: "/dashboard/feedback",
+    icon: MessageSquare,
+    label: "Phản hồi khách hàng",
+  },
+  {
     id: "task-evaluation",
     path: "/dashboard/task-evaluation",
     icon: BadgeCheck,
@@ -140,7 +154,7 @@ export const ALL_MENU_ITEMS = [
 
 // Phân quyền menu theo bộ phận
 export const DEPARTMENT_PERMISSIONS = {
-  // Admin - Toàn quyền
+  // 1. Admin - Quyền cao nhất (toàn bộ menu)
   Admin: [
     "home",
     "blogs",
@@ -153,48 +167,87 @@ export const DEPARTMENT_PERMISSIONS = {
     "event-approvals",
     "customers",
     "partners",
+    "partner-contract",
+    "timeline",
+    "feedback",
     "task-evaluation",
     "ticket-management",
     "ticket-sales",
     "ticket-reports",
+    "payroll",
+    "revenue",
+    "my-salary",
   ],
 
-  // Nhân viên Tổ chức sự kiện
+  // 2. Nhân viên Tổ chức sự kiện (Event Team)
+  // Làm việc với kế hoạch, tổ chức, sự kiện, khách hàng, hợp đồng
   "Nhân viên Tổ chức sự kiện": [
     "home",
+    "staffs",
+    "services",
     "bookings",
     "event-plans",
     "event-plan-details",
-    "event-approvals",
     "customers",
+    "partners",
+    "partner-contract",
+    "timeline",
+    "feedback",
+    "task-evaluation",
+    "ticket-management",
+    "ticket-sales",
+    "my-salary",
   ],
 
-  // Nhân viên thực hiện
-  "Nhân viên thực hiện": ["home", "event-plans", "event-plan-details", "task-evaluation"],
+  // 3. Nhân viên thực hiện (Production / Execution)
+  // Tập trung vào công việc được giao và báo cáo
+  "Nhân viên thực hiện": [
+    "home",
+    "event-plans",
+    "event-plan-details",
+    "timeline",
+    "my-salary",
+  ],
 
-  // Nhân viên Quản lý
+  // 4. Nhân viên Quản lý (Team Leader / Manager)
+  // Quản lý team, phê duyệt kế hoạch, theo dõi tiến độ
   "Nhân viên Quản lý": [
     "home",
+    "blogs",
+    "users",
     "staffs",
+    "services",
     "bookings",
     "event-plans",
     "event-plan-details",
     "event-approvals",
     "customers",
     "partners",
+    "partner-contract",
+    "timeline",
+    "feedback",
     "task-evaluation",
-    "ticket-management",
     "ticket-reports",
+    "payroll",
+    "revenue",
+    "my-salary",
   ],
 
-  // Nhân viên Marketing
+  // 5. Nhân viên Marketing
+  // Tập trung vào content, quảng cáo, truyền thông, bán vé
   "Nhân viên Marketing": [
     "home",
     "blogs",
-    "users",
     "services",
+    "bookings",
+    "event-plans",
+    "event-plan-details",
+    "timeline",
+    "task-evaluation",
+    "ticket-management",
     "ticket-sales",
     "ticket-reports",
+    "my-salary",
   ],
 };
 
