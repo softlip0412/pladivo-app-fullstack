@@ -39,28 +39,37 @@ export async function POST(request) {
     try {
       let hasUpdates = false;
 
-      contract.payment_schedule.forEach((item, index) => {
+      // Create a completely new array to ensure Mongoose detects the change
+      const newPaymentSchedule = contract.payment_schedule.map((item, index) => {
+        // Mongoose subdocuments match via _id, so we can convert to object or keep properties
+        // It is safer to modify the object if we want to keep _id
+        
         if (item.status !== 'paid') {
-          // Tạo dữ liệu thanh toán mới (Mã code mới, QR mới)
           const newData = createPaymentData(contract, index);
           
-          item.payment_code = newData.payment_code;
-          item.payment_link = newData.payment_link;
-          item.qr_code = newData.qr_code;
-          item.description = newData.transfer_content; // Cập nhật nội dung hiển thị nếu cần
-          
           hasUpdates = true;
+          
+          return {
+            ...item.toObject ? item.toObject() : item, // Ensure it's a plain object
+            payment_code: newData.payment_code,
+            payment_link: newData.payment_link,
+            qr_code: newData.qr_code,
+            description: newData.transfer_content
+          };
         }
+        return item;
       });
 
       if (hasUpdates) {
+        // Direct assignment helps Mongoose detect changes
+        contract.payment_schedule = newPaymentSchedule;
         contract.markModified('payment_schedule');
+        
         await contract.save();
         console.log("🔄 Regenerated payment info for resending contract:", contract.contract_number);
       }
     } catch (err) {
       console.error("Error regenerating payment data:", err);
-      // Tiếp tục gửi mail dù lỗi generate code mới (để tránh block quy trình)
     }
 
     // Gửi email
