@@ -34,6 +34,34 @@ export async function POST(request) {
       );
     }
 
+    // Tự động làm mới thông tin thanh toán cho các đợt chưa thanh toán
+    try {
+      const { createPaymentData } = await import("@/lib/sepay");
+      let hasUpdates = false;
+
+      contract.payment_schedule.forEach((item, index) => {
+        if (item.status !== 'paid') {
+          // Tạo dữ liệu thanh toán mới (Mã code mới, QR mới)
+          const newData = createPaymentData(contract, index);
+          
+          item.payment_code = newData.payment_code;
+          item.payment_link = newData.payment_link;
+          item.qr_code = newData.qr_code;
+          item.description = newData.transfer_content; // Cập nhật nội dung hiển thị nếu cần
+          
+          hasUpdates = true;
+        }
+      });
+
+      if (hasUpdates) {
+        await contract.save();
+        console.log("🔄 Regenerated payment info for resending contract:", contract.contract_number);
+      }
+    } catch (err) {
+      console.error("Error regenerating payment data:", err);
+      // Tiếp tục gửi mail dù lỗi generate code mới (để tránh block quy trình)
+    }
+
     // Gửi email
     let emailResult = { success: false };
     try {
