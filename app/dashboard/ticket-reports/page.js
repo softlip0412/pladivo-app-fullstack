@@ -28,6 +28,7 @@ import {
   Cell,
 } from "recharts";
 import { Download, TrendingUp } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TicketReportsPage() {
   const [bookings, setBookings] = useState([]);
@@ -152,14 +153,11 @@ export default function TicketReportsPage() {
   ];
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold mb-2">📊 Báo Cáo Doanh Thu Vé</h1>
-        <p className="text-gray-600">
-          Phân tích doanh thu bán vé sự kiện
-        </p>
-      </div>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="📊 Báo Cáo Doanh Thu Vé"
+        description="Phân tích doanh thu bán vé sự kiện"
+      />
 
       {/* Filters */}
       <Card>

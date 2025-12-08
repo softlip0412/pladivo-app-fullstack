@@ -30,6 +30,7 @@ import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import eventTemplates from "../data/event-templates";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function EventPlansPage() {
   const router = useRouter();
@@ -1136,8 +1137,11 @@ export default function EventPlansPage() {
 
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">📅 Quản lý Kế hoạch</h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="📅 Quản lý Kế hoạch"
+        description="Tạo và quản lý kế hoạch sự kiện"
+      />
 
       {/* TEMPLATE CONFIRMATION DIALOG */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>

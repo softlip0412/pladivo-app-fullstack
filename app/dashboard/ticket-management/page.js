@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { Ticket, Edit2, Save, X, Calendar, DollarSign, Plus, Trash2, MapPin } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TicketManagementPage() {
   const [bookings, setBookings] = useState([]);
@@ -248,14 +249,11 @@ export default function TicketManagementPage() {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold mb-2">🎫 Quản Lý Bán Vé Sự Kiện</h1>
-        <p className="text-gray-600">
-          Quản lý số lượng và bán vé cho các sự kiện đại chúng
-        </p>
-      </div>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="🎫 Quản Lý Bán Vé Sự Kiện"
+        description="Quản lý số lượng và bán vé cho các sự kiện đại chúng"
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

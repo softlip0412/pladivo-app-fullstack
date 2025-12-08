@@ -43,6 +43,7 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function StaffPage() {
   const [staffs, setStaffs] = useState([]);
@@ -405,16 +406,17 @@ export default function StaffPage() {
   // UI ------------------------------------------------------
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 animate-fade-in">
       <Toaster />
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-semibold">Quản lý Nhân sự</h1>
-
+      <PageHeader
+        title="Quản lý Nhân sự"
+        description="Quản lý thông tin nhân viên và bộ phận"
+      >
         <div className="flex items-center gap-3 flex-wrap">
-          {/* 🟣 Bộ lọc theo Bộ phận */}
+          {/* 🟪 Bộ lọc theo Bộ phận */}
           <Select onValueChange={setFilterDept} value={filterDept}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] bg-white/80 border-white/50">
               <SelectValue placeholder="Lọc theo bộ phận" />
             </SelectTrigger>
             <SelectContent>
@@ -450,9 +452,9 @@ export default function StaffPage() {
             </SelectContent>
           </Select>
 
-          {/* 🟣 Bộ lọc theo Vai trò */}
+          {/* 🟪 Bộ lọc theo Vai trò */}
           <Select onValueChange={setFilterRole} value={filterRole}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[160px] bg-white/80 border-white/50">
               <SelectValue placeholder="Lọc theo vai trò" />
             </SelectTrigger>
             <SelectContent>
@@ -488,11 +490,11 @@ export default function StaffPage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={openAdd} className="flex items-center">
-            <Plus className="w-4 h-4 mr-2" /> Thêm nhân sự
+          <Button onClick={openAdd} variant="glass" size="lg">
+            <Plus className="w-4 h-4" /> Thêm nhân sự
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       <Card className="shadow-sm border rounded-2xl">
         <CardContent>

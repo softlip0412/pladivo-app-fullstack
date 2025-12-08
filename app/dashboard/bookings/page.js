@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function BookingPage() {
   const [bookings, setBookings] = useState([]);
@@ -331,11 +332,15 @@ export default function BookingPage() {
   }
 
   return (
-    <div className="space-y-6 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">📅 Quản lý Booking</h1>
-        <Button onClick={() => setShowAddModal(true)}>➕ Thêm Booking</Button>
-      </div>
+    <div className="space-y-6 p-4 animate-fade-in">
+      <PageHeader
+        title="📅 Quản lý Booking"
+        description="Quản lý và theo dõi các đơn đặt sự kiện"
+      >
+        <Button onClick={() => setShowAddModal(true)} variant="glass" size="lg">
+          ➕ Thêm Booking
+        </Button>
+      </PageHeader>
 
       {/* Bộ chọn tháng/năm */}
       <div className="flex gap-4">
@@ -395,10 +400,10 @@ export default function BookingPage() {
             <Card
               key={day}
               className={cn(
-                "h-24 p-2 cursor-pointer flex flex-col justify-between border transition relative", // Added relative
-                !dayBookings && "hover:bg-gray-50",
-                dayBookings && !hasConfirmed && "bg-yellow-50 hover:bg-yellow-100", // Chỉ có đơn mới (chưa duyệt)
-                hasConfirmed && "bg-green-100 hover:bg-green-200" // Đã có đơn duyệt
+                "h-24 p-2 cursor-pointer flex flex-col justify-between border-2 transition-all duration-300 relative overflow-hidden",
+                !dayBookings && "hover:bg-gradient-to-br hover:from-indigo-50 hover:to-purple-50 hover:border-indigo-200",
+                dayBookings && !hasConfirmed && "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200 hover:shadow-lg hover:-translate-y-1",
+                hasConfirmed && "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:shadow-lg hover:-translate-y-1"
               )}
               onClick={() => {
                 if (dayBookings) {
@@ -411,7 +416,7 @@ export default function BookingPage() {
               <div className="flex justify-between items-start">
                  {/* 🔴 Badge số lượng đơn mới */}
                 {pendingCount > 0 && (
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white font-bold shadow-sm animate-pulse">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-red-500 to-pink-500 text-[10px] text-white font-bold shadow-lg animate-pulse-glow">
                     {pendingCount}
                   </span>
                 )}
@@ -422,11 +427,8 @@ export default function BookingPage() {
               
               {dayBookings && (
                 <Badge 
-                  variant="secondary" 
-                  className={cn(
-                    "text-white self-start",
-                    hasConfirmed ? "bg-green-600" : "bg-yellow-600"
-                  )}
+                  variant={hasConfirmed ? "success" : "warning"}
+                  className="self-start shadow-sm"
                 >
                   {dayBookings.length} đơn
                 </Badge>

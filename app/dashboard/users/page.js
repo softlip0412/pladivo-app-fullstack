@@ -35,6 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Toaster, toast } from "@/components/ui/sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function UsersPage() {
   const [users, setUsers] = useState([]);
@@ -151,17 +152,18 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-6 animate-fade-in">
       <Toaster />
 
-      {/* Thanh tiêu đề và nút thêm */}
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Danh sách người dùng</h1>
-        <Button onClick={openAddDialog}>
-          <Plus className="w-4 h-4 mr-2" />
+      <PageHeader
+        title="Danh sách người dùng"
+        description="Quản lý tài khoản người dùng hệ thống"
+      >
+        <Button onClick={openAddDialog} variant="glass" size="lg">
+          <Plus className="w-4 h-4" />
           Thêm người dùng
         </Button>
-      </div>
+      </PageHeader>
 
       <Card className="shadow-sm border rounded-2xl">
         <CardContent className="pt-6">

@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ui/page-header";
 
 const getEventPlanStatusInfo = (status) => {
   switch (status) {
@@ -406,8 +407,11 @@ export default function CustomersPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">🤝 Quản Lý Khách Hàng & Hợp Đồng</h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="🤝 Quản Lý Khách Hàng & Hợp Đồng"
+        description="Quản lý thông tin khách hàng và hợp đồng sự kiện"
+      />
 
       {/* Search Bar */}
       <div>
@@ -415,6 +419,7 @@ export default function CustomersPage() {
           placeholder="🔍 Tìm theo tên / email / số điện thoại..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          className="border-indigo-100 focus:border-indigo-300 focus:ring-indigo-200"
         />
       </div>
 

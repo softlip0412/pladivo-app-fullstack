@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 const formatDate = (dateStr) => {
   if (!dateStr) return "";
@@ -127,8 +128,11 @@ export default function EventApprovalPage() {
 
   // 🧱 Giao diện chính
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">📋 Phê duyệt kế hoạch sự kiện</h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="📋 Phê duyệt kế hoạch sự kiện"
+        description="Quản lý và phê duyệt các kế hoạch sự kiện"
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {plans.map((p) => (

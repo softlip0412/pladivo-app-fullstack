@@ -29,6 +29,7 @@ import { Label } from "@/components/ui/label";
 import CreateDialog from "./create-dialog";
 import EditDialog from "./edit-dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function AdminBlogsPage() {
   const [openDialog, setOpenDialog] = useState(false);
@@ -115,19 +116,24 @@ export default function AdminBlogsPage() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold">Quản lý bài viết</h1>
-        <div className="flex gap-2">
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="Quản lý bài viết"
+        description="Quản lý nội dung blog và bài viết"
+      >
+        <div className="flex gap-3 items-center">
           <Input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Tìm theo tiêu đề hoặc chuyên mục"
+            className="w-64 border-white/50 bg-white/80"
           />
           <Button
             onClick={() => {
               setOpenDialog(true);
             }}
+            variant="glass"
+            size="lg"
           >
             Tạo mới
           </Button>
@@ -137,7 +143,7 @@ export default function AdminBlogsPage() {
             onSuccess={fetchList}
           />
         </div>
-      </div>
+      </PageHeader>
 
       <Card className="shadow-sm border rounded-2xl">
         <CardContent className="pt-6">

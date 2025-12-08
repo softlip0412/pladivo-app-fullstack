@@ -33,6 +33,7 @@ import { ShoppingCart, Plus, Check, X, Search, AlertCircle, Calendar, MapPin, Fi
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TicketSalesPage() {
   const [sales, setSales] = useState([]);
@@ -272,17 +273,16 @@ export default function TicketSalesPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-bold mb-2">🎫 Quản Lý Đơn Vé</h1>
-          <p className="text-gray-600">Theo dõi bán vé và tạo đơn mới</p>
-        </div>
-        <Button onClick={() => setIsFormOpen(true)} className="bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="w-4 h-4 mr-2" />
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="🎫 Quản Lý Đơn Vé"
+        description="Theo dõi bán vé và tạo đơn mới"
+      >
+        <Button onClick={() => setIsFormOpen(true)} variant="glass" size="lg">
+          <Plus className="w-4 h-4" />
           Tạo đơn mới
         </Button>
-      </div>
+      </PageHeader>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

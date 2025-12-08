@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import {
   Table,
   TableBody,
@@ -218,27 +219,26 @@ export default function PartnerContractPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Quản lý Hợp đồng Đối tác</h1>
-          <p className="text-gray-500">Theo dõi và quản lý các hợp đồng với nhà cung cấp</p>
-        </div>
-        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} className="bg-indigo-600 hover:bg-indigo-700">
-          <Plus className="w-4 h-4 mr-2" />
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="Quản lý Hợp đồng Đối tác"
+        description="Theo dõi và quản lý các hợp đồng với nhà cung cấp"
+      >
+        <Button onClick={() => { resetForm(); setIsDialogOpen(true); }} variant="glass" size="lg">
+          <Plus className="w-4 h-4" />
           Tạo hợp đồng
         </Button>
-      </div>
+      </PageHeader>
 
 
-      <Card>
+      <Card variant="premium" className="animate-slide-up">
         <CardHeader className="pb-3">
           <div className="flex items-center gap-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+              <Search className="absolute left-3 top-3 h-4 w-4 text-indigo-400" />
               <Input
                 placeholder="Tìm kiếm mã HĐ, tiêu đề, đối tác..."
-                className="pl-9"
+                className="pl-10 border-indigo-100 focus:border-indigo-300 focus:ring-indigo-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -293,21 +293,27 @@ export default function PartnerContractPage() {
                     </TableCell>
                     <TableCell>{contract.total_value ? Number(contract.total_value).toLocaleString('vi-VN') + ' đ' : '-'}</TableCell>
                     <TableCell>
-                        <Badge variant={contract.status === 'active' ? 'default' : contract.status === 'expired' ? 'destructive' : 'secondary'}>
-                            {contract.status === 'active' ? 'Đang hiệu lực' : 
-                             contract.status === 'expired' ? 'Hết hạn' : 
-                             contract.status === 'draft' ? 'Nháp' : 'Đã hủy'}
+                        <Badge variant={
+                      contract.status === 'active' ? 'success' : 
+                      contract.status === 'expired' ? 'destructive' : 
+                      contract.status === 'draft' ? 'warning' : 'secondary'
+                    }>
+                            {contract.status === 'active' ? '✓ Đang hiệu lực' : 
+                             contract.status === 'expired' ? '✕ Hết hạn' : 
+                             contract.status === 'draft' ? '○ Nháp' : '⊗ Đã hủy'}
                         </Badge>
                     </TableCell>
                     <TableCell className="text-gray-500 text-xs">{format(new Date(contract.createdAt), 'dd/MM/yyyy')}</TableCell>
                     <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                             <Button variant="ghost" size="icon" onClick={() => handleEdit(contract)}>
-                                <Pencil className="w-4 h-4 text-blue-500" />
+                             <Button variant="outline" size="sm" onClick={() => handleEdit(contract)}>
+                                <Pencil className="w-3 h-3" />
+                                Sửa
                             </Button>
                             {contract.status !== 'terminated' && (
-                                <Button variant="ghost" size="icon" onClick={() => setCancelId(contract._id)}>
-                                    <Ban className="w-4 h-4 text-red-500" />
+                                <Button variant="destructive" size="sm" onClick={() => setCancelId(contract._id)}>
+                                    <Ban className="w-3 h-3" />
+                                    Hủy
                                 </Button>
                             )}
                         </div>

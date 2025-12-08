@@ -28,6 +28,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function ServicesPage() {
   const [services, setServices] = useState([]);
@@ -241,11 +242,12 @@ export default function ServicesPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">📋 Danh sách dịch vụ</h1>
-
-        <div className="flex gap-2 items-center">
+    <div className="space-y-6 p-6 animate-fade-in">
+      <PageHeader
+        title="📋 Danh sách dịch vụ"
+        description="Quản lý các dịch vụ sự kiện của bạn"
+      >
+        <div className="flex gap-3 items-center flex-wrap">
           <Select
             value={selectedCategory}
             onValueChange={(val) => {
@@ -256,7 +258,7 @@ export default function ServicesPage() {
               setSelectedCategory(val);
             }}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48 bg-white/80 border-white/50">
               <SelectValue placeholder="Lọc theo danh mục" />
             </SelectTrigger>
             <SelectContent>
@@ -274,7 +276,7 @@ export default function ServicesPage() {
             value={selectedType}
             onValueChange={(val) => setSelectedType(val)}
           >
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-48 bg-white/80 border-white/50">
               <SelectValue placeholder="Lọc theo loại" />
             </SelectTrigger>
             <SelectContent>
@@ -285,46 +287,55 @@ export default function ServicesPage() {
             </SelectContent>
           </Select>
 
-          <Button onClick={openAddModal}>➕ Thêm dịch vụ</Button>
+          <Button onClick={openAddModal} variant="glass" size="lg">
+            ➕ Thêm dịch vụ
+          </Button>
         </div>
-      </div>
+      </PageHeader>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up">
         {filteredServices.map((s) => (
           <div
             key={s._id}
-            className="flex flex-col p-4 border rounded-lg bg-white shadow hover:shadow-md transition-shadow"
+            className="group flex flex-col rounded-xl border border-indigo-100 bg-white shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden"
           >
             {s.images && s.images.length > 0 ? (
-              <div className="w-full h-48 mb-3 overflow-hidden rounded-md bg-gray-100">
+              <div className="relative w-full h-48 overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50">
                 <img
                   src={s.images[0]}
                   alt={s.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             ) : (
-              <div className="w-full h-48 mb-3 flex items-center justify-center bg-gray-100 rounded-md text-gray-400">
-                <span>Không có ảnh</span>
+              <div className="w-full h-48 flex items-center justify-center bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-300">
+                <span className="text-sm font-medium">Không có ảnh</span>
               </div>
             )}
 
-            <div className="flex-1">
-              <h2 className="font-semibold text-lg line-clamp-1" title={s.name}>
+            <div className="flex-1 p-4">
+              <h2 className="font-bold text-lg line-clamp-1 text-gradient-indigo mb-2" title={s.name}>
                 {s.name}
               </h2>
-              <p className="text-gray-600 text-sm line-clamp-2 mt-1 h-10">
+              <p className="text-gray-600 text-sm line-clamp-2 mb-3 h-10">
                 {s.description}
               </p>
 
-              <div className="mt-3 space-y-1">
-                <p className="text-sm font-medium">
-                  Giá: <span className="text-indigo-600">{s.minPrice?.toLocaleString()}</span> -{" "}
-                  <span className="text-indigo-600">{s.maxPrice?.toLocaleString()}</span>{" "}
-                  <span className="text-gray-500">({s.unit})</span>
-                </p>
+              <div className="space-y-2">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xs text-gray-500">Giá:</span>
+                  <span className="text-lg font-bold text-gradient-primary">
+                    {s.minPrice?.toLocaleString()}
+                  </span>
+                  <span className="text-gray-400">-</span>
+                  <span className="text-lg font-bold text-gradient-primary">
+                    {s.maxPrice?.toLocaleString()}
+                  </span>
+                  <span className="text-xs text-gray-500">({s.unit})</span>
+                </div>
                 <p className="text-xs text-gray-500">
-                  Danh mục: {s.category_id?.name || "Chưa có"}
+                  Danh mục: <span className="font-medium text-indigo-600">{s.category_id?.name || "Chưa có"}</span>
                 </p>
                 <p className="text-xs text-gray-500">
                   Loại: <span className="font-medium text-indigo-600">{s.type}</span>
@@ -332,7 +343,7 @@ export default function ServicesPage() {
               </div>
             </div>
 
-            <div className="flex gap-2 mt-4 pt-3 border-t">
+            <div className="flex gap-2 p-4 pt-0 border-t border-gray-100">
               <Button
                 size="sm"
                 variant="outline"
@@ -352,7 +363,6 @@ export default function ServicesPage() {
               <Button
                 size="sm"
                 variant="destructive"
-                className="px-3"
                 onClick={() => handleDelete(s)}
               >
                 🗑️

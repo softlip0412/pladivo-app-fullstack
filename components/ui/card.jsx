@@ -1,14 +1,33 @@
 import * as React from "react";
+import { cva } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
-const Card = React.forwardRef(({ className, ...props }, ref) => (
+const cardVariants = cva(
+  "rounded-xl bg-card text-card-foreground transition-all duration-300",
+  {
+    variants: {
+      variant: {
+        default:
+          "border border-gray-100 shadow-sm hover:shadow-lg hover:border-indigo-100/50 hover:-translate-y-1",
+        gradient:
+          "border-2 border-transparent bg-gradient-to-br from-white to-indigo-50/30 shadow-md hover:shadow-xl hover:-translate-y-1 border-gradient",
+        glass:
+          "glass-card shadow-lg hover:shadow-xl hover:-translate-y-1",
+        premium:
+          "border border-indigo-100 shadow-md hover:shadow-2xl hover:border-indigo-200 hover:-translate-y-2 bg-gradient-to-br from-white to-purple-50/20",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
+
+const Card = React.forwardRef(({ className, variant, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn(
-      "rounded-xl border border-gray-100 bg-card text-card-foreground shadow-sm transition-all duration-300 hover:shadow-lg hover:border-indigo-100/50",
-      className,
-    )}
+    className={cn(cardVariants({ variant }), className)}
     {...props}
   />
 ));
@@ -23,10 +42,14 @@ const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
 ));
 CardHeader.displayName = "CardHeader";
 
-const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
+const CardTitle = React.forwardRef(({ className, gradient = false, ...props }, ref) => (
   <div
     ref={ref}
-    className={cn("font-semibold leading-none tracking-tight", className)}
+    className={cn(
+      "font-semibold leading-none tracking-tight",
+      gradient && "text-gradient-primary",
+      className
+    )}
     {...props}
   />
 ));
@@ -62,4 +85,5 @@ export {
   CardTitle,
   CardDescription,
   CardContent,
+  cardVariants,
 };

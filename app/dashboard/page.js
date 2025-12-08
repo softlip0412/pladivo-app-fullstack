@@ -129,29 +129,29 @@ export default function DashboardHome() {
     switch (status) {
       case "completed":
         return (
-          <Badge className="bg-green-100 text-green-700">
-            <CheckCircle2 className="w-3 h-3 mr-1" />
+          <Badge variant="success" className="gap-1">
+            <CheckCircle2 className="w-3 h-3" />
             Hoàn thành
           </Badge>
         );
       case "in_progress":
         return (
-          <Badge className="bg-blue-100 text-blue-700">
-            <Clock className="w-3 h-3 mr-1" />
+          <Badge variant="info" className="gap-1">
+            <Clock className="w-3 h-3" />
             Đang làm
           </Badge>
         );
       case "cancelled":
         return (
-          <Badge className="bg-red-100 text-red-700">
-            <XCircle className="w-3 h-3 mr-1" />
+          <Badge variant="destructive" className="gap-1">
+            <XCircle className="w-3 h-3" />
             Đã hủy
           </Badge>
         );
       default:
         return (
-          <Badge className="bg-gray-100 text-gray-700">
-            <Clock className="w-3 h-3 mr-1" />
+          <Badge variant="warning" className="gap-1">
+            <Clock className="w-3 h-3" />
             Chưa làm
           </Badge>
         );
@@ -369,28 +369,31 @@ export default function DashboardHome() {
   const completedTasks = getCompletedTasks();
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-semibold mb-1">Dashboard</h1>
-          <p>Chào mừng bạn đến với Pladivo Admin Panel 🎉</p>
-        </div>
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={staff?.avatar_url || "/avatar.png"}
-                alt={user?.username || "U"}
-              />
-              <AvatarFallback>
-                {user?.username ? user.username[0].toUpperCase() : "U"}
-              </AvatarFallback>
-            </Avatar>
-            <span className="font-medium">{user.username}</span>
+    <div className="p-6 space-y-6 animate-fade-in">
+      {/* Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-8 text-white shadow-xl">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 animate-gradient bg-[length:200%_auto]" />
+        <div className="relative z-10 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 animate-fade-in">Dashboard</h1>
+            <p className="text-white/90 animate-slide-up">Chào mừng bạn đến với Pladivo Admin Panel 🎉</p>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button variant="glass" size="icon" className="bg-white/20 hover:bg-white/30">
+              <Bell className="h-5 w-5" />
+            </Button>
+            <div className="flex items-center gap-3 bg-white/20 rounded-full px-4 py-2 backdrop-blur-sm">
+              <Avatar className="h-10 w-10 ring-2 ring-white/50">
+                <AvatarImage
+                  src={staff?.avatar_url || "/avatar.png"}
+                  alt={user?.username || "U"}
+                />
+                <AvatarFallback className="bg-gradient-to-br from-indigo-400 to-purple-400 text-white">
+                  {user?.username ? user.username[0].toUpperCase() : "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="font-semibold">{user.username}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -398,9 +401,9 @@ export default function DashboardHome() {
       {/* Dashboard Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Card 1: Thông tin cá nhân */}
-        <Card>
+        <Card variant="premium" className="animate-slide-up">
           <CardHeader>
-            <CardTitle>Thông tin cá nhân</CardTitle>
+            <CardTitle gradient>Thông tin cá nhân</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -441,7 +444,7 @@ export default function DashboardHome() {
         </Card>
 
         {/* Card 2: Lịch làm việc dạng tuần */}
-        <Card className="lg:col-span-2">
+        <Card variant="premium" className="lg:col-span-2 animate-slide-up" style={{animationDelay: "0.1s"}}>
           <CardHeader className="flex flex-row justify-between items-center">
             <CardTitle>Lịch làm việc tuần</CardTitle>
             <div className="flex items-center gap-2">
@@ -545,9 +548,9 @@ export default function DashboardHome() {
         </Card>
 
         {/* Card 3: Sổ tay công việc với Pagination */}
-        <Card className="lg:col-span-3">
+        <Card variant="premium" className="lg:col-span-3 animate-slide-up" style={{animationDelay: "0.2s"}}>
           <CardHeader>
-            <CardTitle>
+            <CardTitle gradient>
               📝 Sổ tay công việc ({pendingTasks.length} việc cần làm)
             </CardTitle>
           </CardHeader>
@@ -624,9 +627,9 @@ export default function DashboardHome() {
         </Card>
 
         {/* Card 4: Đánh giá công việc */}
-        <Card className="lg:col-span-3">
+        <Card variant="premium" className="lg:col-span-3 animate-slide-up" style={{animationDelay: "0.3s"}}>
           <CardHeader>
-            <CardTitle>
+            <CardTitle gradient>
               ⭐ Đánh giá công việc ({completedTasks.length} đã hoàn thành)
             </CardTitle>
           </CardHeader>

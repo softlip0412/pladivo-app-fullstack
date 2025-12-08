@@ -23,6 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Sparkles, X, CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone } from "lucide-react";
 import eventTemplates from "../data/event-templates";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function EventPlanDetailsPage() {
   const router = useRouter();
@@ -558,8 +559,11 @@ export default function EventPlanDetailsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">📋 Quản lý Kế hoạch Chi tiết</h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="📋 Quản lý Kế hoạch Chi tiết"
+        description="Lập kế hoạch chi tiết cho các sự kiện đã được duyệt"
+      />
 
       {/* FILTERS */}
       <div className="flex flex-col md:flex-row gap-3">

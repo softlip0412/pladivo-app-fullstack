@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function ServiceOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -17,10 +18,13 @@ export default function ServiceOrdersPage() {
   }, []);
 
   return (
-    <div>
-      <h1 className="text-xl font-bold mb-4">Đơn dịch vụ</h1>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="Đơn dịch vụ"
+        description="Quản lý các đơn dịch vụ"
+      />
       {orders.map((o) => (
-        <div key={o.id} className="border rounded-lg p-3 mb-2 bg-white">
+        <div key={o.id} className="border rounded-lg p-3 mb-2 bg-white hover:shadow-md transition-shadow">
           <h2 className="font-semibold">{o.customerName}</h2>
           <p>{o.serviceName}</p>
           <p className="text-sm text-gray-600">{o.status}</p>

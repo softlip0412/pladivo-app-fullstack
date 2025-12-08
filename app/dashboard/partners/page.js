@@ -19,6 +19,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function PartnersPage() {
   const [partners, setPartners] = useState([]);
@@ -121,11 +122,15 @@ export default function PartnersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">🤝 Quản lý Đối tác</h1>
-        <Button onClick={() => setShowModal(true)}>➕ Thêm đối tác</Button>
-      </div>
+    <div className="space-y-6 p-6 animate-fade-in">
+      <PageHeader
+        title="🤝 Quản lý Đối tác"
+        description="Quản lý thông tin các đối tác cung cấp dịch vụ"
+      >
+        <Button onClick={() => setShowModal(true)} variant="glass" size="lg">
+          ➕ Thêm đối tác
+        </Button>
+      </PageHeader>
 
       {/* Bộ lọc */}
       <div className="flex gap-4 items-center">
@@ -133,7 +138,7 @@ export default function PartnersPage() {
           value={filterType || "all"}
           onValueChange={(val) => setFilterType(val === "all" ? "" : val)}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] bg-white border-indigo-100">
             <SelectValue placeholder="Loại đối tác" />
           </SelectTrigger>
           <SelectContent>

@@ -29,6 +29,7 @@ import {
   User,
 } from "lucide-react";
 import Image from "next/image";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default function TaskEvaluationPage() {
   const [tasks, setTasks] = useState([]);
@@ -255,16 +256,11 @@ export default function TaskEvaluationPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">⭐ Đánh giá công việc</h1>
-          <p className="text-gray-600">
-            Quản lý và đánh giá báo cáo công việc của nhân viên
-          </p>
-        </div>
-      </div>
+    <div className="p-6 space-y-6 animate-fade-in">
+      <PageHeader
+        title="⭐ Đánh giá công việc"
+        description="Quản lý và đánh giá báo cáo công việc của nhân viên"
+      />
 
       {/* Filters */}
       <Card>
