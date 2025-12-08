@@ -28,7 +28,7 @@ const TicketSaleSchema = new mongoose.Schema(
     payment_method: {
       type: String,
       enum: ["cash", "bank_transfer", "card", "wallet"],
-      default: "cash",
+      default: "bank_transfer",
     },
     paid_at: { type: Date }, // Thời gian thanh toán
 

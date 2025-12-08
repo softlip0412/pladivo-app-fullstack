@@ -173,7 +173,7 @@ export default function TicketReportsPage() {
                 <SelectItem value="all">Tất cả sự kiện</SelectItem>
                 {bookings.map((b) => (
                   <SelectItem key={b._id} value={b._id}>
-                    {b.event_type}
+                    {b.event_type} - {new Date(b.event_date).toLocaleDateString("vi-VN")}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -243,31 +243,58 @@ export default function TicketReportsPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Doanh thu theo loại vé */}
-        <Card>
+        <Card className="shadow-lg border-indigo-100">
           <CardHeader>
             <CardTitle>Doanh thu theo loại vé</CardTitle>
           </CardHeader>
           <CardContent>
             {byTicketType.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={byTicketType}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="ticket_type" angle={-45} height={80} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="paid_revenue" fill="#10b981" name="Doanh thu" />
+                <BarChart data={byTicketType} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis 
+                      dataKey="ticket_type" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                      dy={10}
+                   />
+                  <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6B7280', fontSize: 12 }}
+                      tickFormatter={(value) => `${(value / 1000000).toFixed(0)}M`}
+                  />
+                  <Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                      formatter={(value) => [`${value.toLocaleString('vi-VN')} đ`, 'Doanh thu']}
+                  />
+                  <Bar 
+                      dataKey="paid_revenue" 
+                      fill="url(#colorRevenue)" 
+                      radius={[6, 6, 0, 0]}
+                      barSize={40}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-gray-500 py-8">
-                Không có dữ liệu
-              </p>
+              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
+                  <TrendingUp className="w-12 h-12 mb-2 opacity-20" />
+                  <p>Chưa có dữ liệu doanh thu</p>
+              </div>
             )}
           </CardContent>
         </Card>
 
         {/* Tỷ lệ loại vé */}
-        <Card>
+        <Card className="shadow-lg border-indigo-100">
           <CardHeader>
             <CardTitle>Tỷ lệ loại vé đã bán</CardTitle>
           </CardHeader>
@@ -281,23 +308,31 @@ export default function TicketReportsPage() {
                     nameKey="ticket_type"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    label
+                    innerRadius={60}
+                    outerRadius={100}
+                    paddingAngle={5}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
                   >
                     {byTicketType.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
+                        stroke="none"
                       />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle"/>
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <p className="text-center text-gray-500 py-8">
-                Không có dữ liệu
-              </p>
+               <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
+                  <div className="w-12 h-12 rounded-full border-4 border-gray-200 border-t-transparent mb-2 opacity-20" />
+                  <p>Chưa có dữ liệu vé bán</p>
+              </div>
             )}
           </CardContent>
         </Card>
