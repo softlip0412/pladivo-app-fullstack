@@ -3,6 +3,8 @@ import { connectDB } from "@/app/api/common/db";
 import TicketOrder from "@/models/TicketOrder";
 import mongoose from "mongoose";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req) {
   try {
     await connectDB();

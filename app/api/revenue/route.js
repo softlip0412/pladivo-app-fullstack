@@ -7,6 +7,8 @@ import Partner from "@/models/Partner";
 import Staff from "@/models/Staff";
 import Department from "@/models/Department";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     await connectDB();

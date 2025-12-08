@@ -4,6 +4,8 @@ import { authenticateToken } from "../common/auth";
 import { handleCORS } from "../common/cors";
 import { requirePermission } from "../common/permissions";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   const db = await connectDB();
   const user = await authenticateToken(request);

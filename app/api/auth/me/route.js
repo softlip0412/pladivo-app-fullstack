@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { authenticateToken } from "@/app/api/common/auth";
 import { handleCORS } from "@/app/api/common/cors";
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request) {
   try {
     // 🟢 Ưu tiên đọc token trong cookie

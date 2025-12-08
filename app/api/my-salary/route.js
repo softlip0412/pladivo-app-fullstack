@@ -6,6 +6,8 @@ import User from "@/models/User";
 import Department from "@/models/Department";
 import mongoose from "mongoose";
 
+export const dynamic = 'force-dynamic';
+
 // ====== [GET] LẤY LƯƠNG CỦA USER HIỆN TẠI ======
 export async function GET(req) {
   try {

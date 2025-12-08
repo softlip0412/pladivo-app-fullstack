@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -25,7 +25,7 @@ import { Sparkles, X, CheckCircle, Clock, XCircle, Calendar, Users, Tag, Phone }
 import eventTemplates from "../data/event-templates";
 import { PageHeader } from "@/components/ui/page-header";
 
-export default function EventPlanDetailsPage() {
+function EventPlanDetailsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const bookingIdFromUrl = searchParams.get("booking_id");
@@ -1412,5 +1412,13 @@ export default function EventPlanDetailsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function EventPlanDetailsPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Đang tải...</div>}>
+      <EventPlanDetailsPageContent />
+    </Suspense>
   );
 }

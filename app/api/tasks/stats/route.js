@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/app/api/common/db";
 import Task from "@/models/Task";
 
+export const dynamic = 'force-dynamic';
+
 // ====== [GET] THỐNG KÊ TASKS ======
 export async function GET(req) {
   try {
