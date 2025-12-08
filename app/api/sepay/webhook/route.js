@@ -26,12 +26,13 @@ import { parseWebhookData, verifyWebhookSignature } from "@/lib/sepay";
 export async function POST(request) {
   try {
     const signature = request.headers.get("x-sepay-signature");
+    const authorization = request.headers.get("authorization");
     const payload = await request.json();
 
     console.log("Sepay webhook received:", payload);
 
     // Verify webhook signature (optional in sandbox, required in production)
-    if (signature && !verifyWebhookSignature(payload, signature)) {
+    if ((signature || authorization) && !verifyWebhookSignature(payload, signature, authorization)) {
       console.error("Invalid webhook signature");
       return NextResponse.json(
         { success: false, message: "Invalid signature" },
