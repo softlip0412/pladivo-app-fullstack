@@ -6,20 +6,26 @@ import Booking from "@/models/Booking";
 import { sendContractEmail } from "@/lib/email";
 import { createPaymentData } from "@/lib/sepay";
 
-// GET: Lấy hợp đồng theo booking_id
+// GET: Lấy hợp đồng theo booking_id HOẶC lấy tất cả nếu không có booking_id
 export async function GET(request) {
   try {
     await connectDB();
     const { searchParams } = new URL(request.url);
     const booking_id = searchParams.get("booking_id");
 
+    // Case 1: List all (for dropdowns)
     if (!booking_id) {
-      return NextResponse.json(
-        { success: false, message: "Missing booking_id" },
-        { status: 400 }
-      );
+        const contracts = await EventContract.find()
+            .select("contract_number title party_a status createdAt") // Select necessary fields
+            .sort({ createdAt: -1 });
+
+        return NextResponse.json({
+            success: true,
+            data: contracts
+        });
     }
 
+    // Case 2: Get specific contract detail by booking_idl
     const contract = await EventContract.findOne({ booking_id });
     const eventPlan = await EventPlan.findOne({ booking_id }).lean();
     

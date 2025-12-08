@@ -14,6 +14,7 @@ import {
   ChartBar,
   StickyNote,
   ClipboardCheck,
+  FileText,
 } from "lucide-react";
 
 // Danh sách tất cả menu items
@@ -83,6 +84,12 @@ export const ALL_MENU_ITEMS = [
     path: "/dashboard/partners",
     icon: Handshake,
     label: "Đối tác",
+  },
+  {
+    id: "partner-contract",
+    path: "/dashboard/partner-contract",
+    icon: FileText,
+    label: "Hợp đồng đối tác",
   },
   {
     id: "task-evaluation",
