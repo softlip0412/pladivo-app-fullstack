@@ -17,6 +17,7 @@ import {
   FileText,
   DollarSign,
   Wallet,
+  TrendingUp,
 } from "lucide-react";
 
 // Danh sách tất cả menu items
@@ -122,6 +123,12 @@ export const ALL_MENU_ITEMS = [
     path: "/dashboard/payroll",
     icon: DollarSign,
     label: "Tính lương",
+  },
+  {
+    id: "revenue",
+    path: "/dashboard/revenue",
+    icon: TrendingUp,
+    label: "Doanh thu",
   },
   {
     id: "my-salary",
