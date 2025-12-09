@@ -4,25 +4,6 @@ import EventContract from "@/models/EventContract";
 import Payment from "@/models/Payment";
 import { parseWebhookData, verifyWebhookSignature } from "@/lib/sepay";
 
-/**
- * Sepay Webhook Endpoint
- * Receives payment notifications from Sepay when customer makes bank transfer
- * 
- * Webhook payload example:
- * {
- *   "id": "123456",
- *   "gateway": "VCB",
- *   "transaction_date": "2024-12-04 23:00:00",
- *   "account_number": "0123456789",
- *   "code": "PLADIVO-HD001-1-ABC123",
- *   "content": "PLADIVO-HD001-1-ABC123 Thanh toan dot 1",
- *   "transfer_type": "in",
- *   "amount_in": 5000000,
- *   "amount_out": 0,
- *   "accumulated": 10000000,
- *   "reference_code": "REF123"
- * }
- */
 export async function POST(request) {
   try {
     const signature = request.headers.get("x-sepay-signature");
@@ -31,7 +12,6 @@ export async function POST(request) {
 
     console.log("Sepay webhook received:", payload);
 
-    // Verify webhook signature (optional in sandbox, required in production)
     if ((signature || authorization) && !verifyWebhookSignature(payload, signature, authorization)) {
       console.error("Invalid webhook signature");
       return NextResponse.json(
