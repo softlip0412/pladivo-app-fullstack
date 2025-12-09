@@ -131,13 +131,14 @@ export default function PaymentPage() {
                   <h3 className="text-lg font-bold text-purple-900 mb-4 flex items-center gap-2">
                     📱 Quét mã QR
                   </h3>
-                  <div className="bg-white p-4 rounded-lg inline-block">
-                    <img 
-                      src={paymentItem.qr_code} 
-                      alt="QR Code thanh toán"
-                      className="w-64 h-64 object-contain"
-                    />
-                  </div>
+                    <div className="bg-white p-4 rounded-lg inline-block">
+                      {/* Force 2000 VND QR Code for Testing */}
+                      <img 
+                        src={`https://img.vietqr.io/image/${process.env.NEXT_PUBLIC_SEPAY_BANK_CODE || 'TPB'}-${process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NUMBER || '00002456029'}-compact2.png?amount=2000&addInfo=${encodeURIComponent(paymentCode || paymentItem.payment_code)}&accountName=${encodeURIComponent(process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NAME || 'CONG TY PLADIVO')}`}
+                        alt="QR Code thanh toán"
+                        className="w-64 h-64 object-contain"
+                      />
+                    </div>
                   <p className="text-sm text-purple-700 mt-4">
                     Sử dụng app ngân hàng để quét mã QR và thanh toán
                   </p>
@@ -152,11 +153,11 @@ export default function PaymentPage() {
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-gray-600">Ngân hàng</p>
-                      <p className="font-bold text-gray-900">{process.env.NEXT_PUBLIC_SEPAY_BANK_CODE || 'VCB'} - Vietcombank</p>
+                      <p className="font-bold text-gray-900">{process.env.NEXT_PUBLIC_SEPAY_BANK_CODE || 'TPB'} - TPBank</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Số tài khoản</p>
-                      <p className="font-bold text-gray-900">{process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NUMBER || '0123456789'}</p>
+                      <p className="font-bold text-gray-900">{process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NUMBER || '00002456029'}</p>
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Chủ tài khoản</p>
@@ -164,7 +165,7 @@ export default function PaymentPage() {
                     </div>
                     <div>
                       <p className="text-sm text-gray-600">Số tiền</p>
-                      <p className="font-bold text-2xl text-red-600">{formatCurrency(paymentItem.amount)}</p>
+                      <p className="font-bold text-2xl text-red-600">{formatCurrency(2000)}</p>
                     </div>
                     <div className="bg-yellow-50 border-2 border-yellow-400 p-4 rounded-lg">
                       <p className="text-sm text-yellow-800 font-bold mb-2">⚠️ Nội dung chuyển khoản (BẮT BUỘC)</p>

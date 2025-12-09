@@ -18,9 +18,9 @@ export default function TestWebhookPage() {
       // Simulate Sepay webhook payload
       const webhookPayload = {
         id: `TEST-${Date.now()}`,
-        gateway: 'VCB',
+        gateway: 'TPBank',
         transaction_date: new Date().toISOString().replace('T', ' ').substring(0, 19),
-        account_number: process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NUMBER || '0123456789',
+        account_number: process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NUMBER || '00002456029',
         code: paymentCode,
         content: `${paymentCode} Thanh toan hop dong`,
         transfer_type: 'in',

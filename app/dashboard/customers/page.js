@@ -59,6 +59,7 @@ export default function CustomersPage() {
 
   // Contract states
   const [isContractOpen, setIsContractOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [selectedEventPlan, setSelectedEventPlan] = useState(null);
   const [contractData, setContractData] = useState({
     contract_number: "",
