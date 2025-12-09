@@ -36,40 +36,40 @@ export async function POST(request) {
     }
 
     // Tự động làm mới thông tin thanh toán cho các đợt chưa thanh toán
-    try {
-      let hasUpdates = false;
+    // Tự động làm mới thông tin thanh toán cho các đợt chưa thanh toán
+    let hasUpdates = false;
 
-      // Create a completely new array to ensure Mongoose detects the change
-      const newPaymentSchedule = contract.payment_schedule.map((item, index) => {
-        // Mongoose subdocuments match via _id, so we can convert to object or keep properties
-        // It is safer to modify the object if we want to keep _id
+    // Create a completely new array to ensure Mongoose detects the change
+    const newPaymentSchedule = contract.payment_schedule.map((item, index) => {
+      // Mongoose subdocuments match via _id, so we can convert to object or keep properties
+      // It is safer to modify the object if we want to keep _id
+      
+      if (item.status !== 'paid') {
+        const newData = createPaymentData(contract, index);
         
-        if (item.status !== 'paid') {
-          const newData = createPaymentData(contract, index);
-          
-          hasUpdates = true;
-          
-          return {
-            ...item.toObject ? item.toObject() : item, // Ensure it's a plain object
-            payment_code: newData.payment_code,
-            payment_link: newData.payment_link,
-            qr_code: newData.qr_code,
-            description: newData.transfer_content
-          };
-        }
-        return item;
-      });
-
-      if (hasUpdates) {
-        // Direct assignment helps Mongoose detect changes
-        contract.payment_schedule = newPaymentSchedule;
-        contract.markModified('payment_schedule');
+        hasUpdates = true;
         
-        await contract.save();
-        console.log("🔄 Regenerated payment info for resending contract:", contract.contract_number);
+        return {
+          ...item.toObject ? item.toObject() : item, // Ensure it's a plain object
+          payment_code: newData.payment_code,
+          payment_link: newData.payment_link,
+          qr_code: newData.qr_code,
+          description: newData.transfer_content
+        };
       }
-    } catch (err) {
-      console.error("Error regenerating payment data:", err);
+      return item;
+    });
+
+    if (hasUpdates) {
+      // Direct assignment helps Mongoose detect changes
+      contract.payment_schedule = newPaymentSchedule;
+      contract.markModified('payment_schedule');
+      
+      // Save changes to database
+      // NOTE: We await this explicitly. If it fails, the outer catch block will handle it
+      // and prevent the email from being sent with unsaved data.
+      await contract.save();
+      console.log("🔄 Regenerated payment info for resending contract:", contract.contract_number);
     }
 
     // Gửi email
